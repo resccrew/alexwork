@@ -1,0 +1,23 @@
+[Unit]
+Description=Dyzury Telegram bot (doctor shift/duty hour tracker)
+After=network-online.target
+Wants=network-online.target
+
+[Service]
+Type=simple
+User=dyzurybot
+WorkingDirectory=/opt/dyzury-bot
+ExecStart=/opt/dyzury-bot/.venv/bin/python /opt/dyzury-bot/bot.py
+Restart=always
+RestartSec=5
+StandardOutput=journal
+StandardError=journal
+
+# Belt-and-suspenders: the bot never listens on a network port (long-polling,
+# outbound only), so it doesn't need broad filesystem/network access.
+NoNewPrivileges=true
+ProtectSystem=strict
+ReadWritePaths=/opt/dyzury-bot/data
+
+[Install]
+WantedBy=multi-user.target
