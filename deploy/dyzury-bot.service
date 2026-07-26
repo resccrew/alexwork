@@ -15,8 +15,11 @@ StandardError=journal
 
 # Belt-and-suspenders: the bot never listens on a network port (long-polling,
 # outbound only), so it doesn't need broad filesystem/network access.
+# PrivateTmp gives it its own writable /tmp -- openpyxl needs a real temp dir
+# internally when saving worksheets, ProtectSystem=strict alone hides /tmp.
 NoNewPrivileges=true
 ProtectSystem=strict
+PrivateTmp=true
 ReadWritePaths=/opt/dyzury-bot/data
 
 [Install]
