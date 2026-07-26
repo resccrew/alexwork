@@ -6,13 +6,6 @@ import db
 from config import TZ
 
 
-@pytest.fixture(autouse=True)
-async def fresh_db(tmp_path):
-    db.DB_PATH = tmp_path / "test.db"
-    await db.init_db()
-    yield
-
-
 async def test_open_then_close_computes_hours():
     start = datetime(2026, 3, 2, 6, 56, tzinfo=TZ)
     end = datetime(2026, 3, 2, 15, 10, tzinfo=TZ)
