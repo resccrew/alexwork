@@ -1,6 +1,7 @@
 import asyncio
 from dataclasses import dataclass
 from datetime import datetime
+from pathlib import Path
 from typing import Optional
 
 import aiosqlite
@@ -215,9 +216,14 @@ async def get_entries_for_day(year: int, month: int, day: int) -> list[Entry]:
         return [_row_to_entry(r) for r in rows]
 
 
-async def replace_database(new_db_path) -> None:
-    """Used by /restore: swap the live database file for a backup, under the lock."""
+async def replace_database(new_db_path) -> Path:
+    """Used by /restore: save the current DB aside (never silently discard it), then swap
+    in the provided backup file. Returns the path the previous DB was saved to."""
     import shutil
 
     async with _lock:
+        safety_copy = DB_PATH.parent / f"work.db.bak-{now_str().replace(' ', '_').replace(':', '')}"
+        if DB_PATH.exists():
+            shutil.copyfile(DB_PATH, safety_copy)
         shutil.copyfile(new_db_path, DB_PATH)
+        return safety_copy

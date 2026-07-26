@@ -19,6 +19,7 @@ from aiogram.types import (
 from apscheduler.schedulers.asyncio import AsyncIOScheduler
 from apscheduler.triggers.cron import CronTrigger
 
+import backup
 import db
 import excel
 from config import ADMIN_CHAT_ID, BOT_TOKEN, DATA_DIR, DEPARTMENTS, LOG_PATH, MONTH_NAMES_PL, TZ
@@ -188,14 +189,7 @@ async def leave(message: Message):
 
 
 async def on_shift_closed(bot: Bot):
-    """Hook for the backup module to send a fresh backup after every closed shift."""
-    try:
-        import backup
-        await backup.send_backup(bot, reason="смена закрыта")
-    except ImportError:
-        pass
-    except Exception:
-        logger.exception("Backup after shift close failed")
+    await backup.send_backup(bot, reason="смена закрыта")
 
 
 # ---------------------------------------------------------- Мои часы ----
@@ -521,6 +515,68 @@ async def correction_edit_confirm_no(callback: CallbackQuery, state: FSMContext)
     await callback.answer()
 
 
+# ------------------------------------------------------------- restore ----
+
+class Restore(StatesGroup):
+    awaiting_file = State()
+    confirm = State()
+
+
+@router.message(Command("restore"))
+async def cmd_restore(message: Message, state: FSMContext):
+    if message.reply_to_message and message.reply_to_message.document:
+        await _prepare_restore(message, state, message.reply_to_message.document)
+        return
+    await message.answer(
+        "Пришлите файл work.db (например, из бэкапа, который бот отправлял сюда), "
+        "и я предложу его восстановить."
+    )
+    await state.set_state(Restore.awaiting_file)
+
+
+@router.message(Restore.awaiting_file, F.document)
+async def restore_receive_file(message: Message, state: FSMContext):
+    await _prepare_restore(message, state, message.document)
+
+
+async def _prepare_restore(message: Message, state: FSMContext, document):
+    dest = DATA_DIR / f"restore_upload_{document.file_unique_id}.db"
+    await message.bot.download(document, destination=dest)
+    await state.update_data(restore_path=str(dest))
+    size_kb = dest.stat().st_size / 1024
+    kb = InlineKeyboardMarkup(
+        inline_keyboard=[[
+            InlineKeyboardButton(text="⚠️ Да, заменить базу", callback_data="restore:yes"),
+            InlineKeyboardButton(text="❌ Отмена", callback_data="restore:no"),
+        ]]
+    )
+    await message.answer(
+        f"Файл получен ({size_kb:.0f} КБ).\n\n"
+        "Текущая база будет сохранена рядом (на всякий случай), а эта станет основной. "
+        "Продолжить?",
+        reply_markup=kb,
+    )
+    await state.set_state(Restore.confirm)
+
+
+@router.callback_query(Restore.confirm, F.data == "restore:yes")
+async def restore_confirm_yes(callback: CallbackQuery, state: FSMContext):
+    data = await state.get_data()
+    safety_copy = await db.replace_database(data["restore_path"])
+    await callback.message.edit_text(
+        f"✅ База восстановлена. Предыдущая версия сохранена как {safety_copy.name}."
+    )
+    await state.clear()
+    await callback.answer()
+
+
+@router.callback_query(Restore.confirm, F.data == "restore:no")
+async def restore_confirm_no(callback: CallbackQuery, state: FSMContext):
+    await callback.message.edit_text("Отменено, база не изменена.")
+    await state.clear()
+    await callback.answer()
+
+
 # --------------------------------------------------------- reminders ----
 
 async def remind_if_work_still_open(bot: Bot):
@@ -549,6 +605,10 @@ async def remind_if_dyzur_too_long(bot: Bot):
             )
 
 
+async def daily_backup(bot: Bot):
+    await backup.send_backup(bot, reason="ежедневный бэкап")
+
+
 def setup_scheduler(bot: Bot) -> AsyncIOScheduler:
     scheduler = AsyncIOScheduler(timezone=TZ)
     scheduler.add_job(
@@ -558,6 +618,10 @@ def setup_scheduler(bot: Bot) -> AsyncIOScheduler:
     scheduler.add_job(
         remind_if_dyzur_too_long, CronTrigger(hour=10, minute=0, timezone=TZ), args=[bot],
         id="morning_dyzur_reminder", replace_existing=True,
+    )
+    scheduler.add_job(
+        daily_backup, CronTrigger(hour=23, minute=0, timezone=TZ), args=[bot],
+        id="daily_backup", replace_existing=True,
     )
     scheduler.start()
     return scheduler
