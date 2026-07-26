@@ -16,7 +16,11 @@ if _bad_cert_file and not Path(_bad_cert_file).exists():
     os.environ.pop("SSL_CERT_FILE", None)
 
 BOT_TOKEN = os.environ["BOT_TOKEN"]
-ADMIN_CHAT_ID = os.environ.get("ADMIN_CHAT_ID", "").strip()
+
+# One or more Telegram chat_ids allowed to use the bot, comma-separated
+# (e.g. "542407863,987654321" -- the doctor plus whoever else needs access).
+# Everyone in this set shares the same data: one set of shifts/dyżury, one Excel.
+ADMIN_CHAT_IDS = {x.strip() for x in os.environ.get("ADMIN_CHAT_ID", "").split(",") if x.strip()}
 
 DATA_DIR = BASE_DIR / "data"
 DATA_DIR.mkdir(exist_ok=True)

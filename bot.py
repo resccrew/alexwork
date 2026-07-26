@@ -22,7 +22,7 @@ from apscheduler.triggers.cron import CronTrigger
 import backup
 import db
 import excel
-from config import ADMIN_CHAT_ID, BOT_TOKEN, DATA_DIR, DEPARTMENTS, LOG_PATH, MONTH_NAMES_PL, TZ
+from config import ADMIN_CHAT_IDS, BOT_TOKEN, DATA_DIR, DEPARTMENTS, LOG_PATH, MONTH_NAMES_PL, TZ
 
 logging.basicConfig(
     level=logging.INFO,
@@ -49,9 +49,7 @@ def department_keyboard(prefix: str) -> InlineKeyboardMarkup:
 
 
 def is_authorized(user_id: int) -> bool:
-    if not ADMIN_CHAT_ID:
-        return False
-    return str(user_id) == str(ADMIN_CHAT_ID)
+    return str(user_id) in ADMIN_CHAT_IDS
 
 
 def fmt_hm(hours: float) -> str:
@@ -88,7 +86,7 @@ router.callback_query.filter(IsAdmin())
 
 @public_router.message(Command("start"))
 async def cmd_start(message: Message):
-    if not ADMIN_CHAT_ID:
+    if not ADMIN_CHAT_IDS:
         logger.info("Bootstrap /start from unconfigured chat_id=%s", message.from_user.id)
         await message.answer(
             f"Ваш chat_id: <code>{message.from_user.id}</code>\n\n"
@@ -97,6 +95,7 @@ async def cmd_start(message: Message):
         )
         return
     if not is_authorized(message.from_user.id):
+        logger.info("Unrecognized /start from chat_id=%s", message.from_user.id)
         await message.answer("Это личный бот.")
         return
     await message.answer("Готов к работе.", reply_markup=MAIN_MENU)
@@ -579,27 +578,32 @@ async def restore_confirm_no(callback: CallbackQuery, state: FSMContext):
 
 # --------------------------------------------------------- reminders ----
 
+async def broadcast(bot: Bot, text: str, **kwargs):
+    """Send the same message to every authorized chat_id (doctor + anyone else with access)."""
+    for chat_id in ADMIN_CHAT_IDS:
+        try:
+            await bot.send_message(chat_id, text, **kwargs)
+        except Exception:
+            logger.exception("Failed to message chat_id=%s", chat_id)
+
+
 async def remind_if_work_still_open(bot: Bot):
-    if not ADMIN_CHAT_ID:
-        return
     open_e = await db.get_open_entry()
     if open_e and open_e.kind == "work":
-        await bot.send_message(
-            ADMIN_CHAT_ID,
+        await broadcast(
+            bot,
             f"Вы ещё на работе? Смена открыта с {open_e.start_dt:%H:%M}.\n"
             "Не забудьте нажать 🏁 Ушёл.",
         )
 
 
 async def remind_if_dyzur_too_long(bot: Bot):
-    if not ADMIN_CHAT_ID:
-        return
     open_e = await db.get_open_entry()
     if open_e and open_e.kind == "dyzur":
         elapsed_hours = (datetime.now(TZ) - open_e.start_dt).total_seconds() / 3600
         if elapsed_hours > 20:
-            await bot.send_message(
-                ADMIN_CHAT_ID,
+            await broadcast(
+                bot,
                 f"Дежурство идёт уже {elapsed_hours:.1f} ч (с {open_e.start_dt:%d.%m %H:%M}).\n"
                 "Если оно закончилось, не забудьте нажать 🏁 Ушёл.",
             )
