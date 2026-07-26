@@ -16,6 +16,8 @@ from aiogram.types import (
     Message,
     ReplyKeyboardMarkup,
 )
+from apscheduler.schedulers.asyncio import AsyncIOScheduler
+from apscheduler.triggers.cron import CronTrigger
 
 import db
 import excel
@@ -519,6 +521,48 @@ async def correction_edit_confirm_no(callback: CallbackQuery, state: FSMContext)
     await callback.answer()
 
 
+# --------------------------------------------------------- reminders ----
+
+async def remind_if_work_still_open(bot: Bot):
+    if not ADMIN_CHAT_ID:
+        return
+    open_e = await db.get_open_entry()
+    if open_e and open_e.kind == "work":
+        await bot.send_message(
+            ADMIN_CHAT_ID,
+            f"Вы ещё на работе? Смена открыта с {open_e.start_dt:%H:%M}.\n"
+            "Не забудьте нажать 🏁 Ушёл.",
+        )
+
+
+async def remind_if_dyzur_too_long(bot: Bot):
+    if not ADMIN_CHAT_ID:
+        return
+    open_e = await db.get_open_entry()
+    if open_e and open_e.kind == "dyzur":
+        elapsed_hours = (datetime.now(TZ) - open_e.start_dt).total_seconds() / 3600
+        if elapsed_hours > 20:
+            await bot.send_message(
+                ADMIN_CHAT_ID,
+                f"Дежурство идёт уже {elapsed_hours:.1f} ч (с {open_e.start_dt:%d.%m %H:%M}).\n"
+                "Если оно закончилось, не забудьте нажать 🏁 Ушёл.",
+            )
+
+
+def setup_scheduler(bot: Bot) -> AsyncIOScheduler:
+    scheduler = AsyncIOScheduler(timezone=TZ)
+    scheduler.add_job(
+        remind_if_work_still_open, CronTrigger(hour=20, minute=0, timezone=TZ), args=[bot],
+        id="evening_work_reminder", replace_existing=True,
+    )
+    scheduler.add_job(
+        remind_if_dyzur_too_long, CronTrigger(hour=10, minute=0, timezone=TZ), args=[bot],
+        id="morning_dyzur_reminder", replace_existing=True,
+    )
+    scheduler.start()
+    return scheduler
+
+
 # ------------------------------------------------------------- errors ----
 
 dp = Dispatcher(storage=MemoryStorage())
@@ -542,6 +586,7 @@ async def main():
     await db.init_db()
     bot = Bot(token=BOT_TOKEN)
     await bot.delete_webhook(drop_pending_updates=True)
+    setup_scheduler(bot)
     logger.info("Bot starting, polling...")
     await dp.start_polling(bot)
 
