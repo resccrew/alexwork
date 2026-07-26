@@ -7,6 +7,14 @@ from dotenv import load_dotenv
 BASE_DIR = Path(__file__).resolve().parent
 load_dotenv(BASE_DIR / ".env")
 
+# This machine has a stale SSL_CERT_FILE pointing at a drive that no longer exists
+# (E:\sims\cacert.pem), which breaks TLS verification for aiohttp/pip/anything OpenSSL-based.
+# Drop it here so the bot can always reach api.telegram.org regardless of that leftover
+# environment variable; harmless no-op on any machine where it's unset or valid.
+_bad_cert_file = os.environ.get("SSL_CERT_FILE")
+if _bad_cert_file and not Path(_bad_cert_file).exists():
+    os.environ.pop("SSL_CERT_FILE", None)
+
 BOT_TOKEN = os.environ["BOT_TOKEN"]
 ADMIN_CHAT_ID = os.environ.get("ADMIN_CHAT_ID", "").strip()
 
