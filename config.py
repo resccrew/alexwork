@@ -17,6 +17,10 @@ if _bad_cert_file and not Path(_bad_cert_file).exists():
 
 BOT_TOKEN = os.environ["BOT_TOKEN"]
 
+# Public HTTPS URL the MedApp Mini App frontend is served from (Telegram requires HTTPS
+# and won't accept localhost). Leave unset to run the bot without the Mini App button.
+WEBAPP_URL = os.environ.get("WEBAPP_URL", "").strip()
+
 # One or more Telegram chat_ids allowed to use the bot, comma-separated
 # (e.g. "542407863,987654321" -- the doctor plus whoever else needs access).
 # Everyone in this set shares the same data: one set of shifts/dyżury, one Excel.

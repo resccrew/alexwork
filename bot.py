@@ -13,8 +13,10 @@ from aiogram.types import (
     InlineKeyboardButton,
     InlineKeyboardMarkup,
     KeyboardButton,
+    MenuButtonWebApp,
     Message,
     ReplyKeyboardMarkup,
+    WebAppInfo,
 )
 from apscheduler.schedulers.asyncio import AsyncIOScheduler
 from apscheduler.triggers.cron import CronTrigger
@@ -22,7 +24,7 @@ from apscheduler.triggers.cron import CronTrigger
 import backup
 import db
 import excel
-from config import ADMIN_CHAT_IDS, BOT_TOKEN, DATA_DIR, DEPARTMENTS, LOG_PATH, MONTH_NAMES_PL, TZ
+from config import ADMIN_CHAT_IDS, BOT_TOKEN, DATA_DIR, DEPARTMENTS, LOG_PATH, MONTH_NAMES_PL, TZ, WEBAPP_URL
 
 logging.basicConfig(
     level=logging.INFO,
@@ -31,14 +33,18 @@ logging.basicConfig(
 )
 logger = logging.getLogger("dyzury_bot")
 
-MAIN_MENU = ReplyKeyboardMarkup(
-    keyboard=[
+def main_menu_keyboard() -> ReplyKeyboardMarkup:
+    rows = [
         [KeyboardButton(text="✅ Пришёл"), KeyboardButton(text="🌙 Дежурство")],
         [KeyboardButton(text="🏁 Ушёл"), KeyboardButton(text="📊 Мои часы")],
         [KeyboardButton(text="📄 Таблица"), KeyboardButton(text="✏️ Исправить")],
-    ],
-    resize_keyboard=True,
-)
+    ]
+    if WEBAPP_URL:
+        rows.append([KeyboardButton(text="📱 Открыть MedApp", web_app=WebAppInfo(url=WEBAPP_URL))])
+    return ReplyKeyboardMarkup(keyboard=rows, resize_keyboard=True)
+
+
+MAIN_MENU = main_menu_keyboard()
 
 TIME_RE = r"^([01]\d|2[0-3]):([0-5]\d)$"
 
@@ -654,6 +660,10 @@ async def main():
     await db.init_db()
     bot = Bot(token=BOT_TOKEN)
     await bot.delete_webhook(drop_pending_updates=True)
+    if WEBAPP_URL:
+        await bot.set_chat_menu_button(
+            menu_button=MenuButtonWebApp(text="MedApp", web_app=WebAppInfo(url=WEBAPP_URL))
+        )
     setup_scheduler(bot)
     logger.info("Bot starting, polling...")
     await dp.start_polling(bot)

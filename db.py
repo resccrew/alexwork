@@ -32,6 +32,7 @@ class Entry:
     end_ts: Optional[str]
     source: str
     created_at: str
+    edited: bool = False
 
     @property
     def start_dt(self) -> datetime:
@@ -63,6 +64,7 @@ def _row_to_entry(row) -> Entry:
     return Entry(
         id=row[0], kind=row[1], oddzial=row[2],
         start_ts=row[3], end_ts=row[4], source=row[5], created_at=row[6],
+        edited=bool(row[7]),
     )
 
 
@@ -74,21 +76,38 @@ CREATE TABLE IF NOT EXISTS entries (
   start_ts TEXT NOT NULL,
   end_ts TEXT,
   source TEXT NOT NULL DEFAULT 'bot',
-  created_at TEXT NOT NULL
+  created_at TEXT NOT NULL,
+  edited INTEGER NOT NULL DEFAULT 0
+);
+
+CREATE TABLE IF NOT EXISTS profile (
+  id INTEGER PRIMARY KEY CHECK (id = 1),
+  rate REAL NOT NULL DEFAULT 0,
+  norm_hours REAL NOT NULL DEFAULT 160,
+  employment TEXT NOT NULL DEFAULT 'etat',
+  default_oddzial TEXT,
+  dyzur_bonus_pct REAL NOT NULL DEFAULT 0,
+  night_bonus_pct REAL NOT NULL DEFAULT 0
 );
 """
 
 
 async def init_db():
     async with aiosqlite.connect(DB_PATH) as db:
-        await db.execute(SCHEMA)
+        await db.executescript(SCHEMA)
+        # Migrate DBs created before the `edited` column existed.
+        cur = await db.execute("PRAGMA table_info(entries)")
+        cols = {row[1] for row in await cur.fetchall()}
+        if "edited" not in cols:
+            await db.execute("ALTER TABLE entries ADD COLUMN edited INTEGER NOT NULL DEFAULT 0")
+        await db.execute("INSERT OR IGNORE INTO profile (id) VALUES (1)")
         await db.commit()
 
 
 async def get_open_entry() -> Optional[Entry]:
     async with aiosqlite.connect(DB_PATH) as db:
         cur = await db.execute(
-            "SELECT id, kind, oddzial, start_ts, end_ts, source, created_at "
+            "SELECT id, kind, oddzial, start_ts, end_ts, source, created_at, edited "
             "FROM entries WHERE end_ts IS NULL ORDER BY id DESC LIMIT 1"
         )
         row = await cur.fetchone()
@@ -150,7 +169,7 @@ async def close_and_reopen(new_kind: str, oddzial: str, at_dt: Optional[datetime
 async def get_entry(entry_id: int) -> Optional[Entry]:
     async with aiosqlite.connect(DB_PATH) as db:
         cur = await db.execute(
-            "SELECT id, kind, oddzial, start_ts, end_ts, source, created_at FROM entries WHERE id = ?",
+            "SELECT id, kind, oddzial, start_ts, end_ts, source, created_at, edited FROM entries WHERE id = ?",
             (entry_id,),
         )
         row = await cur.fetchone()
@@ -160,35 +179,58 @@ async def get_entry(entry_id: int) -> Optional[Entry]:
 async def get_last_entry() -> Optional[Entry]:
     async with aiosqlite.connect(DB_PATH) as db:
         cur = await db.execute(
-            "SELECT id, kind, oddzial, start_ts, end_ts, source, created_at "
+            "SELECT id, kind, oddzial, start_ts, end_ts, source, created_at, edited "
             "FROM entries ORDER BY id DESC LIMIT 1"
         )
         row = await cur.fetchone()
         return _row_to_entry(row) if row else None
 
 
-async def add_manual_entry(kind: str, oddzial: str, start_dt: datetime, end_dt: datetime, source: str = "manual") -> Entry:
+async def add_manual_entry(
+    kind: str, oddzial: str, start_dt: datetime, end_dt: datetime,
+    source: str = "manual", edited: bool = False,
+) -> Entry:
     async with _lock:
         async with aiosqlite.connect(DB_PATH) as db:
             cur = await db.execute(
-                "INSERT INTO entries (kind, oddzial, start_ts, end_ts, source, created_at) "
-                "VALUES (?, ?, ?, ?, ?, ?)",
-                (kind, oddzial, to_str(start_dt), to_str(end_dt), source, now_str()),
+                "INSERT INTO entries (kind, oddzial, start_ts, end_ts, source, created_at, edited) "
+                "VALUES (?, ?, ?, ?, ?, ?, ?)",
+                (kind, oddzial, to_str(start_dt), to_str(end_dt), source, now_str(), int(edited)),
             )
             await db.commit()
             entry_id = cur.lastrowid
         return await get_entry(entry_id)
 
 
-async def update_entry(entry_id: int, start_dt: Optional[datetime] = None, end_dt: Optional[datetime] = None) -> Entry:
+async def update_entry(
+    entry_id: int,
+    start_dt: Optional[datetime] = None,
+    end_dt: Optional[datetime] = None,
+    kind: Optional[str] = None,
+    oddzial: Optional[str] = None,
+    mark_edited: bool = False,
+) -> Entry:
     async with _lock:
         async with aiosqlite.connect(DB_PATH) as db:
             if start_dt is not None:
                 await db.execute("UPDATE entries SET start_ts = ? WHERE id = ?", (to_str(start_dt), entry_id))
             if end_dt is not None:
                 await db.execute("UPDATE entries SET end_ts = ? WHERE id = ?", (to_str(end_dt), entry_id))
+            if kind is not None:
+                await db.execute("UPDATE entries SET kind = ? WHERE id = ?", (kind, entry_id))
+            if oddzial is not None:
+                await db.execute("UPDATE entries SET oddzial = ? WHERE id = ?", (oddzial, entry_id))
+            if mark_edited:
+                await db.execute("UPDATE entries SET edited = 1 WHERE id = ?", (entry_id,))
             await db.commit()
         return await get_entry(entry_id)
+
+
+async def delete_entry(entry_id: int) -> None:
+    async with _lock:
+        async with aiosqlite.connect(DB_PATH) as db:
+            await db.execute("DELETE FROM entries WHERE id = ?", (entry_id,))
+            await db.commit()
 
 
 async def get_entries_for_month(year: int, month: int) -> list[Entry]:
@@ -196,7 +238,7 @@ async def get_entries_for_month(year: int, month: int) -> list[Entry]:
     prefix = f"{year:04d}-{month:02d}-"
     async with aiosqlite.connect(DB_PATH) as db:
         cur = await db.execute(
-            "SELECT id, kind, oddzial, start_ts, end_ts, source, created_at "
+            "SELECT id, kind, oddzial, start_ts, end_ts, source, created_at, edited "
             "FROM entries WHERE start_ts LIKE ? AND end_ts IS NOT NULL ORDER BY start_ts ASC",
             (prefix + "%",),
         )
@@ -208,12 +250,48 @@ async def get_entries_for_day(year: int, month: int, day: int) -> list[Entry]:
     prefix = f"{year:04d}-{month:02d}-{day:02d}"
     async with aiosqlite.connect(DB_PATH) as db:
         cur = await db.execute(
-            "SELECT id, kind, oddzial, start_ts, end_ts, source, created_at "
+            "SELECT id, kind, oddzial, start_ts, end_ts, source, created_at, edited "
             "FROM entries WHERE start_ts LIKE ? ORDER BY start_ts ASC",
             (prefix + "%",),
         )
         rows = await cur.fetchall()
         return [_row_to_entry(r) for r in rows]
+
+
+@dataclass
+class Profile:
+    rate: float
+    norm_hours: float
+    employment: str
+    default_oddzial: Optional[str]
+    dyzur_bonus_pct: float
+    night_bonus_pct: float
+
+
+async def get_profile() -> Profile:
+    async with aiosqlite.connect(DB_PATH) as db:
+        cur = await db.execute(
+            "SELECT rate, norm_hours, employment, default_oddzial, dyzur_bonus_pct, night_bonus_pct "
+            "FROM profile WHERE id = 1"
+        )
+        row = await cur.fetchone()
+        return Profile(rate=row[0], norm_hours=row[1], employment=row[2], default_oddzial=row[3],
+                        dyzur_bonus_pct=row[4], night_bonus_pct=row[5])
+
+
+async def update_profile(**fields) -> Profile:
+    allowed = {"rate", "norm_hours", "employment", "default_oddzial", "dyzur_bonus_pct", "night_bonus_pct"}
+    unknown = set(fields) - allowed
+    if unknown:
+        raise ValueError(f"Unknown profile fields: {unknown}")
+    if not fields:
+        return await get_profile()
+    async with _lock:
+        async with aiosqlite.connect(DB_PATH) as db:
+            set_clause = ", ".join(f"{k} = ?" for k in fields)
+            await db.execute(f"UPDATE profile SET {set_clause} WHERE id = 1", tuple(fields.values()))
+            await db.commit()
+    return await get_profile()
 
 
 async def replace_database(new_db_path) -> Path:

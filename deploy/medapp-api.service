@@ -1,0 +1,23 @@
+[Unit]
+Description=MedApp Mini App API (FastAPI backend for the Telegram Mini App)
+After=network-online.target
+Wants=network-online.target
+
+[Service]
+Type=simple
+User=dyzurybot
+WorkingDirectory=/opt/dyzury-bot
+Environment=ALLOWED_ORIGINS=https://medapp.example.com
+ExecStart=/opt/dyzury-bot/.venv/bin/python -m uvicorn webapp.main:app --host 127.0.0.1 --port 8000
+Restart=always
+RestartSec=5
+StandardOutput=journal
+StandardError=journal
+
+NoNewPrivileges=true
+ProtectSystem=strict
+PrivateTmp=true
+ReadWritePaths=/opt/dyzury-bot/data
+
+[Install]
+WantedBy=multi-user.target
