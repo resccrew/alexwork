@@ -64,6 +64,20 @@ button {
   font-family: inherit;
 }
 
+/* Reset native <button> chrome (UA border/background/padding) so every button's look
+   comes entirely from its own class/inline styles -- otherwise a spot that forgets to
+   set `border` shows the browser's default outset border instead of nothing. */
+button {
+  border: none;
+  background: none;
+  padding: 0;
+  margin: 0;
+  color: inherit;
+  cursor: pointer;
+  -webkit-appearance: none;
+  appearance: none;
+}
+
 ::-webkit-scrollbar {
   width: 0;
   height: 0;

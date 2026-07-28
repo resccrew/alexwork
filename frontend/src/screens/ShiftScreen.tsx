@@ -193,22 +193,22 @@ export function ShiftScreen() {
           <div style={{ fontSize: 13, fontWeight: 600, color: 'var(--muted)', marginBottom: 8 }}>Тип смены</div>
           <div style={{ display: 'flex', gap: 8, marginBottom: 14 }}>
             <button
-              className="segmented option"
               style={{
-                flex: 1, background: pendingKind === 'work' ? 'var(--praca-soft)' : 'var(--surface2)',
+                flex: 1, textAlign: 'center', padding: '9px 0', borderRadius: 10, fontSize: 13, fontWeight: 600,
+                cursor: 'pointer', border: `1px solid ${pendingKind === 'work' ? 'var(--praca)' : 'var(--border)'}`,
+                background: pendingKind === 'work' ? 'var(--praca-soft)' : 'var(--surface2)',
                 color: pendingKind === 'work' ? 'var(--praca)' : 'var(--muted)',
-                borderColor: pendingKind === 'work' ? 'var(--praca)' : 'var(--border)',
               }}
               onClick={() => setPendingKind('work')}
             >
               Praca
             </button>
             <button
-              className="segmented option"
               style={{
-                flex: 1, background: pendingKind === 'dyzur' ? 'var(--dyzur-soft)' : 'var(--surface2)',
+                flex: 1, textAlign: 'center', padding: '9px 0', borderRadius: 10, fontSize: 13, fontWeight: 600,
+                cursor: 'pointer', border: `1px solid ${pendingKind === 'dyzur' ? 'var(--dyzur)' : 'var(--border)'}`,
+                background: pendingKind === 'dyzur' ? 'var(--dyzur-soft)' : 'var(--surface2)',
                 color: pendingKind === 'dyzur' ? 'var(--dyzur)' : 'var(--muted)',
-                borderColor: pendingKind === 'dyzur' ? 'var(--dyzur)' : 'var(--border)',
               }}
               onClick={() => setPendingKind('dyzur')}
             >

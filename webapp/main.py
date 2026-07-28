@@ -52,6 +52,10 @@ async def get_current_user(
     authorization: Optional[str] = Header(default=None),
     x_telegram_init_data: Optional[str] = Header(default=None),
 ) -> dict:
+    if os.environ.get("DEV_SKIP_AUTH") == "1":
+        # Local UI preview outside Telegram, where there's no real initData to sign.
+        # Never set this in deploy configs -- it disables auth entirely.
+        return {"id": 0, "first_name": "Dev"}
     raw = None
     if authorization and authorization.lower().startswith("tma "):
         raw = authorization[4:]
