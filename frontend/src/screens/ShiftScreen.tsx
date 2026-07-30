@@ -3,6 +3,7 @@ import { motion } from 'framer-motion'
 import { Clock, Moon, Activity, Building2 } from 'lucide-react'
 import { api } from '../api'
 import { useApp } from '../context/AppContext'
+import { Avatar } from '../components/Avatar'
 import type { Shift, ShiftKind, Summary } from '../types'
 import { haptic, notifyHaptic } from '../telegram'
 import { fmtHours, fmtTime, monthLabel, pad } from '../format'
@@ -129,7 +130,7 @@ export function ShiftScreen() {
           <div className="eyebrow">{greeting}</div>
           <div className="title">Смена</div>
         </div>
-        <div className="avatar" />
+        <Avatar />
       </div>
 
       {showForgotWarning && (

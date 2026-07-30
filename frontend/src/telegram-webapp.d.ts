@@ -22,11 +22,30 @@ declare global {
     selectionChanged(): void
   }
 
+  interface TelegramWebAppUser {
+    id: number
+    first_name: string
+    last_name?: string
+    username?: string
+    language_code?: string
+    is_premium?: boolean
+    photo_url?: string
+  }
+
+  interface TelegramWebAppSafeAreaInset {
+    top: number
+    bottom: number
+    left: number
+    right: number
+  }
+
   interface TelegramWebApp {
     initData: string
-    initDataUnsafe: Record<string, unknown>
+    initDataUnsafe: { user?: TelegramWebAppUser; [key: string]: unknown }
     colorScheme: 'light' | 'dark'
     themeParams: Record<string, string>
+    safeAreaInset: TelegramWebAppSafeAreaInset
+    contentSafeAreaInset: TelegramWebAppSafeAreaInset
     MainButton: TelegramWebAppMainButton
     HapticFeedback: TelegramWebAppHaptic
     ready(): void
@@ -36,6 +55,8 @@ declare global {
     offEvent(event: string, cb: () => void): void
     showConfirm(message: string, callback: (ok: boolean) => void): void
     isVersionAtLeast(version: string): boolean
+    disableVerticalSwipes?(): void
+    enableVerticalSwipes?(): void
   }
 
   interface Window {

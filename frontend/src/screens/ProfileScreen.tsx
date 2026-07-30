@@ -1,6 +1,8 @@
 import { useEffect, useState } from 'react'
 import { api } from '../api'
 import { useApp } from '../context/AppContext'
+import { Avatar } from '../components/Avatar'
+import { getTelegramUser } from '../telegram'
 import type { Employment } from '../types'
 
 const EMPLOYMENT_OPTIONS: { id: Employment; label: string }[] = [
@@ -25,6 +27,7 @@ export function ProfileScreen() {
   }, [profile])
 
   const departments = config?.departments ?? []
+  const telegramUser = getTelegramUser()
 
   const commit = async (fields: Record<string, unknown>) => {
     try {
@@ -46,10 +49,10 @@ export function ProfileScreen() {
   return (
     <div className="screen">
       <div style={{ padding: '22px 18px 10px', display: 'flex', alignItems: 'center', gap: 14 }}>
-        <div style={{ width: 56, height: 56, borderRadius: '50%', background: 'var(--surface2)', border: '1px solid var(--border)' }} />
+        <Avatar size={56} />
         <div>
           <div className="eyebrow">профиль</div>
-          <div style={{ fontSize: 22, fontWeight: 700, letterSpacing: -0.3 }}>Врач</div>
+          <div style={{ fontSize: 22, fontWeight: 700, letterSpacing: -0.3 }}>{telegramUser?.first_name ?? 'Врач'}</div>
         </div>
       </div>
 

@@ -22,8 +22,9 @@ interface Props {
 }
 
 const inputStyle: CSSProperties = {
-  width: '100%', border: '1px solid var(--border)', borderRadius: 10, padding: '9px 10px',
-  fontSize: 14, color: 'var(--text)', background: 'var(--surface2)', outline: 'none',
+  width: '100%', minWidth: 0, boxSizing: 'border-box', border: '1px solid var(--border)', borderRadius: 10,
+  padding: '9px 10px', fontSize: 14, color: 'var(--text)', background: 'var(--surface2)', outline: 'none',
+  WebkitAppearance: 'none', appearance: 'none',
 }
 
 const typeBtnStyle = (active: boolean, color: string, soft: string): CSSProperties => ({
@@ -46,7 +47,7 @@ export function ShiftEditForm({ draft, departments, title, busy, onChange, onSav
       </div>
 
       <div style={{ display: 'flex', gap: 8, marginBottom: 12 }}>
-        <div style={{ flex: 1 }}>
+        <div style={{ flex: 1, minWidth: 0 }}>
           <div style={{ fontSize: 11, color: 'var(--muted)', marginBottom: 5 }}>Начало</div>
           <input
             type="time" value={draft.start}
@@ -54,7 +55,7 @@ export function ShiftEditForm({ draft, departments, title, busy, onChange, onSav
             style={inputStyle}
           />
         </div>
-        <div style={{ flex: 1 }}>
+        <div style={{ flex: 1, minWidth: 0 }}>
           <div style={{ fontSize: 11, color: 'var(--muted)', marginBottom: 5 }}>Конец</div>
           <input
             type="time" value={draft.end}

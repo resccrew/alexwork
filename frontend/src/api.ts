@@ -57,22 +57,6 @@ export const api = {
   profile: () => request<Profile>('/profile'),
   updateProfile: (payload: Partial<Profile>) =>
     request<Profile>('/profile', { method: 'PATCH', body: JSON.stringify(payload) }),
-  async downloadReport(year: number, month: number): Promise<void> {
-    const res = await fetch(`/api/report?year=${year}&month=${month}`, {
-      headers: { Authorization: `tma ${getInitData()}` },
-    })
-    if (!res.ok) throw new ApiError(res.status, res.statusText)
-    const disposition = res.headers.get('content-disposition') ?? ''
-    const match = disposition.match(/filename="?([^"]+)"?/)
-    const filename = match?.[1] ?? `Grafik_${year}_${month}.xlsx`
-    const blob = await res.blob()
-    const url = URL.createObjectURL(blob)
-    const a = document.createElement('a')
-    a.href = url
-    a.download = filename
-    document.body.appendChild(a)
-    a.click()
-    a.remove()
-    URL.revokeObjectURL(url)
-  },
+  sendReport: (year: number, month: number) =>
+    request<{ ok: boolean }>(`/report/send?year=${year}&month=${month}`, { method: 'POST' }),
 }

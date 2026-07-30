@@ -149,3 +149,61 @@ async def test_report_returns_xlsx(client):
     resp = await client.get("/api/report", params={"year": 2026, "month": 7}, headers=auth_headers())
     assert resp.status_code == 200
     assert resp.headers["content-type"].startswith("application/vnd.openxmlformats")
+
+
+def _mock_telegram_post(monkeypatch, fake_response):
+    """Patches httpx.AsyncClient.post so calls to api.telegram.org get `fake_response`
+    while everything else (including the test client's own calls into our ASGI app,
+    which also go through httpx.AsyncClient) fall through to the real implementation."""
+    original_post = httpx.AsyncClient.post
+    calls = []
+
+    async def fake_post(self, url, *args, **kwargs):
+        if "api.telegram.org" in str(url):
+            calls.append((str(url), kwargs.get("data"), kwargs.get("files")))
+            return fake_response
+        return await original_post(self, url, *args, **kwargs)
+
+    monkeypatch.setattr(httpx.AsyncClient, "post", fake_post)
+    return calls
+
+
+async def test_send_report_posts_to_telegram_send_document(client, monkeypatch):
+    await client.post(
+        "/api/shifts",
+        json={
+            "kind": "work", "oddzial": "Urologia",
+            "start": "2026-07-07T07:00:00+02:00", "end": "2026-07-07T15:00:00+02:00",
+        },
+        headers=auth_headers(),
+    )
+
+    class FakeResponse:
+        status_code = 200
+
+        def json(self):
+            return {"ok": True}
+
+    calls = _mock_telegram_post(monkeypatch, FakeResponse())
+
+    resp = await client.post("/api/report/send", params={"year": 2026, "month": 7}, headers=auth_headers())
+    assert resp.status_code == 200
+    assert resp.json() == {"ok": True}
+    assert len(calls) == 1
+    url, data, files = calls[0]
+    assert url.endswith("/sendDocument")
+    assert data["chat_id"] == str(DOCTOR_ID)
+    assert "document" in files
+
+
+async def test_send_report_surfaces_telegram_failure(client, monkeypatch):
+    class FakeResponse:
+        status_code = 400
+
+        def json(self):
+            return {"ok": False, "description": "chat not found"}
+
+    _mock_telegram_post(monkeypatch, FakeResponse())
+
+    resp = await client.post("/api/report/send", params={"year": 2026, "month": 7}, headers=auth_headers())
+    assert resp.status_code == 502

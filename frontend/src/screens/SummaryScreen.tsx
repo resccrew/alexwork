@@ -1,6 +1,7 @@
 import { useEffect, useState } from 'react'
 import { api } from '../api'
 import { useApp } from '../context/AppContext'
+import { Avatar } from '../components/Avatar'
 import type { Summary } from '../types'
 import { fmtHours, fmtMoney, monthLabel, shiftMonth } from '../format'
 
@@ -23,9 +24,10 @@ export function SummaryScreen() {
   const download = async () => {
     setDownloading(true)
     try {
-      await api.downloadReport(year, month)
+      await api.sendReport(year, month)
+      showToast('Отчёт отправлен в чат с ботом')
     } catch (e) {
-      showToast(e instanceof Error ? e.message : 'Не удалось скачать отчёт')
+      showToast(e instanceof Error ? e.message : 'Не удалось отправить отчёт')
     } finally {
       setDownloading(false)
     }
@@ -111,7 +113,7 @@ export function SummaryScreen() {
           <div className="eyebrow">итоги</div>
           <div className="title">{summary ? `${fmtHours(summary.total_hours)} ч` : '…'}</div>
         </div>
-        <div className="avatar" />
+        <Avatar />
       </div>
 
       <div style={{ display: 'flex', alignItems: 'center', gap: 18, padding: '16px 22px 2px' }}>
@@ -179,10 +181,10 @@ export function SummaryScreen() {
 
       <div style={{ padding: '16px 18px 8px' }}>
         <button className="btn btn-primary" style={{ width: '100%' }} disabled={downloading} onClick={download}>
-          {downloading ? 'Готовим отчёт…' : 'Скачать отчёт (Excel)'}
+          {downloading ? 'Отправляем…' : 'Отправить отчёт (Excel)'}
         </button>
         <div style={{ textAlign: 'center', fontSize: 12, color: 'var(--muted)', marginTop: 8 }}>
-          Отчёт уже готов — считать вручную не нужно
+          Придёт файлом в чат с ботом — считать вручную не нужно
         </div>
       </div>
     </div>

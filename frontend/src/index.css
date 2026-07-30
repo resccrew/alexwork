@@ -133,6 +133,9 @@ button {
   flex-direction: column;
   position: relative;
   background: var(--bg);
+  /* Set by telegram.ts from safeAreaInset + contentSafeAreaInset so our header
+     never renders under Telegram's own fullscreen close/menu controls. */
+  padding-top: var(--tg-safe-top, 0px);
 }
 
 .screen {
@@ -158,14 +161,6 @@ button {
   font-weight: 700;
   color: var(--text);
   letter-spacing: -0.5px;
-}
-
-.avatar {
-  width: 40px;
-  height: 40px;
-  border-radius: 50%;
-  background: var(--surface2);
-  border: 1px solid var(--border);
 }
 
 .card {

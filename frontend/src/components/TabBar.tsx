@@ -34,14 +34,14 @@ export function TabBar({ active, onChange }: { active: TabId; onChange: (id: Tab
                     borderRadius: 14,
                     zIndex: 0
                   }}
-                  transition={{ type: 'spring', stiffness: 500, damping: 35 }}
+                  transition={{ type: 'spring', stiffness: 380, damping: 38, mass: 0.9 }}
                 />
               )}
               <motion.div
                 style={{ zIndex: 1, position: 'relative', display: 'flex' }}
-                animate={{ scale: isActive ? 1.15 : 1 }}
+                animate={{ scale: isActive ? 1.1 : 1 }}
                 whileTap={{ scale: 0.9 }}
-                transition={{ type: 'spring', stiffness: 500, damping: 25 }}
+                transition={{ type: 'spring', stiffness: 380, damping: 38, mass: 0.9 }}
               >
                 <Icon size={24} strokeWidth={isActive ? 2.5 : 2} className="tab-icon-svg" />
               </motion.div>

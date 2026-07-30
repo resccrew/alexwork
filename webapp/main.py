@@ -6,6 +6,7 @@ from datetime import datetime
 from pathlib import Path
 from typing import Optional
 
+import httpx
 from fastapi import Depends, FastAPI, Header, HTTPException
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.responses import FileResponse
@@ -14,7 +15,7 @@ from starlette.background import BackgroundTask
 import calc
 import db
 import excel
-from config import DEPARTMENTS, DOCTOR_NAME, MONTH_NAMES_PL, TZ
+from config import BOT_TOKEN, DEPARTMENTS, DOCTOR_NAME, MONTH_NAMES_PL, TZ
 from webapp.auth import InvalidInitData, validate_init_data
 from webapp.schemas import (
     ConfigOut, DayBar, MeOut, ProfileOut, ProfileUpdateIn,
@@ -204,6 +205,31 @@ async def report(year: int, month: int, user: dict = Depends(get_current_user)):
         filename=f"Grafik_{MONTH_NAMES_PL[month]}_{year}.xlsx",
         background=BackgroundTask(shutil.rmtree, tmp_dir, ignore_errors=True),
     )
+
+
+@app.post("/api/report/send")
+async def send_report(year: int, month: int, user: dict = Depends(get_current_user)):
+    """Generates the month's report and delivers it via the bot, into the same private
+    chat the user opened the Mini App from -- the Mini App WebView can't save arbitrary
+    files to disk, so a browser-style download silently does nothing inside Telegram."""
+    entries = await db.get_entries_for_month(year, month)
+    tmp_dir = Path(tempfile.mkdtemp(prefix="medapp_report_"))
+    try:
+        path = tmp_dir / f"Grafik_{year}_{month:02d}.xlsx"
+        excel.generate_month_excel(entries, year, month, path)
+        filename = f"Grafik_{MONTH_NAMES_PL[month]}_{year}.xlsx"
+        async with httpx.AsyncClient(timeout=30) as client:
+            with open(path, "rb") as f:
+                resp = await client.post(
+                    f"https://api.telegram.org/bot{BOT_TOKEN}/sendDocument",
+                    data={"chat_id": str(user["id"]), "caption": f"Grafik {MONTH_NAMES_PL[month]} {year}"},
+                    files={"document": (filename, f, "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet")},
+                )
+        if resp.status_code != 200 or not resp.json().get("ok", False):
+            raise HTTPException(status_code=502, detail="Telegram sendDocument failed")
+    finally:
+        shutil.rmtree(tmp_dir, ignore_errors=True)
+    return {"ok": True}
 
 
 @app.get("/api/profile", response_model=ProfileOut)
