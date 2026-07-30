@@ -70,8 +70,8 @@ def prev_month(year: int, month: int) -> tuple[int, int]:
     return year, month - 1
 
 
-async def month_total_hours(year: int, month: int) -> float:
-    entries = await db.get_entries_for_month(year, month)
+async def month_total_hours(user_id: int, year: int, month: int) -> float:
+    entries = await db.get_entries_for_month(user_id, year, month)
     total_minutes = sum((e.end_dt - e.start_dt).total_seconds() / 60 for e in entries)
     return round(total_minutes / 60, 2)
 
@@ -121,7 +121,7 @@ async def guard_unauthorized(message: Message):
 
 @router.message(F.text == "✅ Пришёл")
 async def arrive(message: Message):
-    open_e = await db.get_open_entry()
+    open_e = await db.get_open_entry(message.from_user.id)
     if open_e:
         await message.answer(
             f"Вы уже отметились в {open_e.start_dt:%H:%M} ({open_e.oddzial}).\n"
@@ -135,7 +135,7 @@ async def arrive(message: Message):
 async def arrive_dept(callback: CallbackQuery):
     dept = callback.data.split(":", 1)[1]
     try:
-        entry = await db.open_entry("work", dept)
+        entry = await db.open_entry(callback.from_user.id, "work", dept)
     except db.EntryAlreadyOpenError as e:
         await callback.message.edit_text(
             f"Вы уже отметились в {e.entry.start_dt:%H:%M} ({e.entry.oddzial})."
@@ -150,9 +150,9 @@ async def arrive_dept(callback: CallbackQuery):
 
 @router.message(F.text == "🌙 Дежурство")
 async def duty(message: Message):
-    open_e = await db.get_open_entry()
+    open_e = await db.get_open_entry(message.from_user.id)
     if open_e:
-        closed, opened = await db.close_and_reopen("dyzur", open_e.oddzial)
+        closed, opened = await db.close_and_reopen(message.from_user.id, "dyzur", open_e.oddzial)
         await message.answer(
             f"Дневная смена закрыта: {fmt_hm(closed.hours)} ({closed.hours:.2f} ч)\n"
             f"🌙 Дежурство начато: {opened.start_dt:%H:%M}, {opened.oddzial}"
@@ -165,7 +165,7 @@ async def duty(message: Message):
 async def duty_dept(callback: CallbackQuery):
     dept = callback.data.split(":", 1)[1]
     try:
-        entry = await db.open_entry("dyzur", dept)
+        entry = await db.open_entry(callback.from_user.id, "dyzur", dept)
     except db.EntryAlreadyOpenError as e:
         await callback.message.edit_text(
             f"Вы уже отметились в {e.entry.start_dt:%H:%M} ({e.entry.oddzial})."
@@ -181,11 +181,11 @@ async def duty_dept(callback: CallbackQuery):
 @router.message(F.text == "🏁 Ушёл")
 async def leave(message: Message):
     try:
-        entry = await db.close_entry()
+        entry = await db.close_entry(message.from_user.id)
     except db.NoOpenEntryError:
         await message.answer("Открытой смены нет. Забыли отметиться? Нажмите ✏️ Исправить")
         return
-    total = await month_total_hours(entry.start_dt.year, entry.start_dt.month)
+    total = await month_total_hours(message.from_user.id, entry.start_dt.year, entry.start_dt.month)
     await message.answer(
         f"🏁 Смена закрыта: {fmt_hm(entry.hours)} ({entry.hours:.2f} ч)\n"
         f"За месяц: {total:.2f} ч"
@@ -202,15 +202,15 @@ async def on_shift_closed(bot: Bot):
 @router.message(F.text == "📊 Мои часы")
 async def my_hours(message: Message):
     now = datetime.now(TZ)
-    today_entries = await db.get_entries_for_day(now.year, now.month, now.day)
+    today_entries = await db.get_entries_for_day(message.from_user.id, now.year, now.month, now.day)
     today_hours = round(sum(e.hours for e in today_entries if e.end_ts is not None), 2)
-    total = await month_total_hours(now.year, now.month)
+    total = await month_total_hours(message.from_user.id, now.year, now.month)
 
     lines = [
         f"Сегодня: {today_hours:.2f} ч",
         f"За {MONTH_NAMES_PL[now.month]} {now.year}: {total:.2f} ч",
     ]
-    open_e = await db.get_open_entry()
+    open_e = await db.get_open_entry(message.from_user.id)
     if open_e:
         elapsed = (now - open_e.start_dt).total_seconds() / 3600
         kind_label = "дежурство" if open_e.kind == "dyzur" else "смена"
@@ -223,10 +223,10 @@ async def my_hours(message: Message):
 
 # ------------------------------------------------------------ Таблица ----
 
-async def send_month_table(message: Message, year: int, month: int):
-    entries = await db.get_entries_for_month(year, month)
-    path = DATA_DIR / f"Grafik_{year}_{month:02d}.xlsx"
-    excel.generate_month_excel(entries, year, month, path)
+async def send_month_table(message: Message, user_id: int, doctor_name: str, year: int, month: int):
+    entries = await db.get_entries_for_month(user_id, year, month)
+    path = DATA_DIR / f"Grafik_{user_id}_{year}_{month:02d}.xlsx"
+    excel.generate_month_excel(entries, year, month, path, doctor_name=doctor_name)
 
     py, pm = prev_month(year, month)
     kb = InlineKeyboardMarkup(
@@ -243,13 +243,15 @@ async def send_month_table(message: Message, year: int, month: int):
 @router.message(F.text == "📄 Таблица")
 async def table(message: Message):
     now = datetime.now(TZ)
-    await send_month_table(message, now.year, now.month)
+    await send_month_table(message, message.from_user.id, message.from_user.full_name, now.year, now.month)
 
 
 @router.callback_query(F.data.startswith("table:"))
 async def table_other_month(callback: CallbackQuery):
     _, year, month = callback.data.split(":")
-    await send_month_table(callback.message, int(year), int(month))
+    await send_month_table(
+        callback.message, callback.from_user.id, callback.from_user.full_name, int(year), int(month),
+    )
     await callback.answer()
 
 
@@ -407,7 +409,7 @@ async def correction_add_confirm_yes(callback: CallbackQuery, state: FSMContext)
     data = await state.get_data()
     start_dt = datetime.fromisoformat(data["start_iso"])
     end_dt = datetime.fromisoformat(data["end_iso"])
-    entry = await db.add_manual_entry(data["kind"], data["oddzial"], start_dt, end_dt)
+    entry = await db.add_manual_entry(callback.from_user.id, data["kind"], data["oddzial"], start_dt, end_dt)
     await callback.message.edit_text(f"✅ Добавлено: {entry.hours:.2f} ч, {entry.oddzial}")
     await state.clear()
     await callback.answer()
@@ -423,7 +425,7 @@ async def correction_add_confirm_no(callback: CallbackQuery, state: FSMContext):
 
 @router.callback_query(Correction.choosing_mode, F.data == "corr:edit")
 async def correction_edit_start(callback: CallbackQuery, state: FSMContext):
-    last = await db.get_last_entry()
+    last = await db.get_last_entry(callback.from_user.id)
     if not last:
         await callback.message.edit_text("Записей ещё нет.")
         await state.clear()
@@ -487,7 +489,7 @@ async def correction_edit_end_time(message: Message, state: FSMContext):
 @router.callback_query(Correction.edit_confirm, F.data == "corr_edit_confirm:yes")
 async def correction_edit_confirm_yes(callback: CallbackQuery, state: FSMContext):
     data = await state.get_data()
-    entry = await db.get_entry(data["entry_id"])
+    entry = await db.get_entry(data["entry_id"], callback.from_user.id)
     year, month, day = map(int, data["orig_date"].split("-"))
 
     new_start_dt = entry.start_dt
@@ -504,6 +506,7 @@ async def correction_edit_confirm_yes(callback: CallbackQuery, state: FSMContext
 
     updated = await db.update_entry(
         entry.id,
+        callback.from_user.id,
         start_dt=new_start_dt if data.get("new_start") else None,
         end_dt=new_end_dt if data.get("new_end") else None,
     )
@@ -584,35 +587,38 @@ async def restore_confirm_no(callback: CallbackQuery, state: FSMContext):
 
 # --------------------------------------------------------- reminders ----
 
-async def broadcast(bot: Bot, text: str, **kwargs):
-    """Send the same message to every authorized chat_id (doctor + anyone else with access)."""
-    for chat_id in ADMIN_CHAT_IDS:
-        try:
-            await bot.send_message(chat_id, text, **kwargs)
-        except Exception:
-            logger.exception("Failed to message chat_id=%s", chat_id)
-
-
 async def remind_if_work_still_open(bot: Bot):
-    open_e = await db.get_open_entry()
-    if open_e and open_e.kind == "work":
-        await broadcast(
-            bot,
-            f"Вы ещё на работе? Смена открыта с {open_e.start_dt:%H:%M}.\n"
-            "Не забудьте нажать 🏁 Ушёл.",
-        )
+    """Each user has their own open (or not) shift now -- check and message per person
+    instead of broadcasting one person's status to everyone with access."""
+    for chat_id in ADMIN_CHAT_IDS:
+        user_id = int(chat_id)
+        open_e = await db.get_open_entry(user_id)
+        if open_e and open_e.kind == "work":
+            try:
+                await bot.send_message(
+                    chat_id,
+                    f"Вы ещё на работе? Смена открыта с {open_e.start_dt:%H:%M}.\n"
+                    "Не забудьте нажать 🏁 Ушёл.",
+                )
+            except Exception:
+                logger.exception("Failed to message chat_id=%s", chat_id)
 
 
 async def remind_if_dyzur_too_long(bot: Bot):
-    open_e = await db.get_open_entry()
-    if open_e and open_e.kind == "dyzur":
-        elapsed_hours = (datetime.now(TZ) - open_e.start_dt).total_seconds() / 3600
-        if elapsed_hours > 20:
-            await broadcast(
-                bot,
-                f"Дежурство идёт уже {elapsed_hours:.1f} ч (с {open_e.start_dt:%d.%m %H:%M}).\n"
-                "Если оно закончилось, не забудьте нажать 🏁 Ушёл.",
-            )
+    for chat_id in ADMIN_CHAT_IDS:
+        user_id = int(chat_id)
+        open_e = await db.get_open_entry(user_id)
+        if open_e and open_e.kind == "dyzur":
+            elapsed_hours = (datetime.now(TZ) - open_e.start_dt).total_seconds() / 3600
+            if elapsed_hours > 20:
+                try:
+                    await bot.send_message(
+                        chat_id,
+                        f"Дежурство идёт уже {elapsed_hours:.1f} ч (с {open_e.start_dt:%d.%m %H:%M}).\n"
+                        "Если оно закончилось, не забудьте нажать 🏁 Ушёл.",
+                    )
+                except Exception:
+                    logger.exception("Failed to message chat_id=%s", chat_id)
 
 
 async def daily_backup(bot: Bot):

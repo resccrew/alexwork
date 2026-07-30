@@ -64,11 +64,14 @@ def _dt(day, hhmm, offset=0):
     return datetime(YEAR, MONTH, day + offset, hh, mm, tzinfo=TZ)
 
 
+USER = 111
+
+
 @pytest.fixture
 async def march_2026_workbook(tmp_path):
     for day, kind, oddzial, start, end, offset in RAW_ENTRIES:
-        await db.add_manual_entry(kind, oddzial, _dt(day, start), _dt(day, end, offset))
-    entries = await db.get_entries_for_month(YEAR, MONTH)
+        await db.add_manual_entry(USER, kind, oddzial, _dt(day, start), _dt(day, end, offset))
+    entries = await db.get_entries_for_month(USER, YEAR, MONTH)
     out_path = tmp_path / "Grafik_2026_03.xlsx"
     generate_month_excel(entries, YEAR, MONTH, out_path)
     return openpyxl.load_workbook(out_path)

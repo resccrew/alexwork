@@ -49,6 +49,13 @@ def to_local(dt: datetime) -> datetime:
     return dt.astimezone(TZ)
 
 
+def doctor_name_for(user: dict) -> str:
+    """Each user's own name for their Excel header -- falls back to the config default
+    only if Telegram somehow didn't give us a name (shouldn't normally happen)."""
+    name = f"{user.get('first_name') or ''} {user.get('last_name') or ''}".strip()
+    return name or DOCTOR_NAME
+
+
 async def get_current_user(
     authorization: Optional[str] = Header(default=None),
     x_telegram_init_data: Optional[str] = Header(default=None),
@@ -91,19 +98,19 @@ async def me(user: dict = Depends(get_current_user)):
 
 @app.get("/api/config", response_model=ConfigOut)
 async def get_config(user: dict = Depends(get_current_user)):
-    return ConfigOut(departments=DEPARTMENTS, doctor_name=DOCTOR_NAME)
+    return ConfigOut(departments=DEPARTMENTS, doctor_name=doctor_name_for(user))
 
 
 @app.get("/api/status", response_model=Optional[ShiftOut])
 async def status(user: dict = Depends(get_current_user)):
-    open_entry = await db.get_open_entry()
+    open_entry = await db.get_open_entry(user["id"])
     return entry_to_shift_out(open_entry) if open_entry else None
 
 
 @app.post("/api/shifts/start", response_model=ShiftOut)
 async def start_shift(body: ShiftStartIn, user: dict = Depends(get_current_user)):
     try:
-        entry = await db.open_entry(body.kind, body.oddzial, source="webapp")
+        entry = await db.open_entry(user["id"], body.kind, body.oddzial, source="webapp")
     except db.EntryAlreadyOpenError as e:
         raise HTTPException(status_code=409, detail="A shift is already open") from e
     return entry_to_shift_out(entry)
@@ -112,7 +119,7 @@ async def start_shift(body: ShiftStartIn, user: dict = Depends(get_current_user)
 @app.post("/api/shifts/stop", response_model=ShiftOut)
 async def stop_shift(user: dict = Depends(get_current_user)):
     try:
-        entry = await db.close_entry()
+        entry = await db.close_entry(user["id"])
     except db.NoOpenEntryError as e:
         raise HTTPException(status_code=404, detail="No open shift") from e
     return entry_to_shift_out(entry)
@@ -120,21 +127,21 @@ async def stop_shift(user: dict = Depends(get_current_user)):
 
 @app.get("/api/shifts", response_model=list[ShiftOut])
 async def list_shifts(year: int, month: int, user: dict = Depends(get_current_user)):
-    entries = await db.get_entries_for_month(year, month)
+    entries = await db.get_entries_for_month(user["id"], year, month)
     entries.sort(key=lambda e: e.start_ts, reverse=True)
     return [entry_to_shift_out(e) for e in entries]
 
 
 @app.get("/api/shifts/upcoming", response_model=list[ShiftOut])
 async def list_upcoming_shifts(user: dict = Depends(get_current_user)):
-    entries = await db.get_upcoming_entries(limit=3)
+    entries = await db.get_upcoming_entries(user["id"], limit=3)
     return [entry_to_shift_out(e) for e in entries]
 
 
 @app.post("/api/shifts", response_model=ShiftOut)
 async def create_shift(body: ShiftCreateIn, user: dict = Depends(get_current_user)):
     entry = await db.add_manual_entry(
-        body.kind, body.oddzial, to_local(body.start), to_local(body.end),
+        user["id"], body.kind, body.oddzial, to_local(body.start), to_local(body.end),
         source="webapp", edited=True,
     )
     return entry_to_shift_out(entry)
@@ -142,11 +149,12 @@ async def create_shift(body: ShiftCreateIn, user: dict = Depends(get_current_use
 
 @app.patch("/api/shifts/{shift_id}", response_model=ShiftOut)
 async def update_shift(shift_id: int, body: ShiftUpdateIn, user: dict = Depends(get_current_user)):
-    existing = await db.get_entry(shift_id)
+    existing = await db.get_entry(shift_id, user["id"])
     if not existing:
         raise HTTPException(status_code=404, detail="Shift not found")
     entry = await db.update_entry(
         shift_id,
+        user["id"],
         start_dt=to_local(body.start) if body.start else None,
         end_dt=to_local(body.end) if body.end else None,
         kind=body.kind,
@@ -158,16 +166,16 @@ async def update_shift(shift_id: int, body: ShiftUpdateIn, user: dict = Depends(
 
 @app.delete("/api/shifts/{shift_id}", status_code=204)
 async def delete_shift(shift_id: int, user: dict = Depends(get_current_user)):
-    existing = await db.get_entry(shift_id)
+    existing = await db.get_entry(shift_id, user["id"])
     if not existing:
         raise HTTPException(status_code=404, detail="Shift not found")
-    await db.delete_entry(shift_id)
+    await db.delete_entry(shift_id, user["id"])
 
 
 @app.get("/api/summary", response_model=SummaryOut)
 async def summary(year: int, month: int, user: dict = Depends(get_current_user)):
-    entries = await db.get_entries_for_month(year, month)
-    profile = await db.get_profile()
+    entries = await db.get_entries_for_month(user["id"], year, month)
+    profile = await db.get_profile(user["id"])
     s = calc.summarize_month(entries, profile)
 
     by_day: dict[int, dict] = {}
@@ -195,10 +203,10 @@ async def summary(year: int, month: int, user: dict = Depends(get_current_user))
 
 @app.get("/api/report")
 async def report(year: int, month: int, user: dict = Depends(get_current_user)):
-    entries = await db.get_entries_for_month(year, month)
+    entries = await db.get_entries_for_month(user["id"], year, month)
     tmp_dir = Path(tempfile.mkdtemp(prefix="medapp_report_"))
     path = tmp_dir / f"Grafik_{year}_{month:02d}.xlsx"
-    excel.generate_month_excel(entries, year, month, path)
+    excel.generate_month_excel(entries, year, month, path, doctor_name=doctor_name_for(user))
     return FileResponse(
         path,
         media_type="application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
@@ -212,11 +220,11 @@ async def send_report(year: int, month: int, user: dict = Depends(get_current_us
     """Generates the month's report and delivers it via the bot, into the same private
     chat the user opened the Mini App from -- the Mini App WebView can't save arbitrary
     files to disk, so a browser-style download silently does nothing inside Telegram."""
-    entries = await db.get_entries_for_month(year, month)
+    entries = await db.get_entries_for_month(user["id"], year, month)
     tmp_dir = Path(tempfile.mkdtemp(prefix="medapp_report_"))
     try:
         path = tmp_dir / f"Grafik_{year}_{month:02d}.xlsx"
-        excel.generate_month_excel(entries, year, month, path)
+        excel.generate_month_excel(entries, year, month, path, doctor_name=doctor_name_for(user))
         filename = f"Grafik_{MONTH_NAMES_PL[month]}_{year}.xlsx"
         async with httpx.AsyncClient(timeout=30) as client:
             with open(path, "rb") as f:
@@ -234,12 +242,12 @@ async def send_report(year: int, month: int, user: dict = Depends(get_current_us
 
 @app.get("/api/profile", response_model=ProfileOut)
 async def get_profile(user: dict = Depends(get_current_user)):
-    p = await db.get_profile()
+    p = await db.get_profile(user["id"])
     return ProfileOut(**vars(p))
 
 
 @app.patch("/api/profile", response_model=ProfileOut)
 async def update_profile(body: ProfileUpdateIn, user: dict = Depends(get_current_user)):
     fields = {k: v for k, v in body.model_dump().items() if v is not None}
-    p = await db.update_profile(**fields)
+    p = await db.update_profile(user["id"], **fields)
     return ProfileOut(**vars(p))

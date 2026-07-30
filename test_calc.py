@@ -6,6 +6,8 @@ import db
 from calc import night_minutes, summarize_month
 from config import TZ
 
+USER = 111
+
 
 def test_night_minutes_no_overlap():
     start = datetime(2026, 7, 7, 7, 0, tzinfo=TZ)
@@ -36,15 +38,15 @@ def test_night_minutes_partial_overlap():
 
 async def test_summarize_month_totals_and_overtime():
     await db.add_manual_entry(
-        "work", "Urologia",
+        USER, "work", "Urologia",
         datetime(2026, 7, 7, 7, 0, tzinfo=TZ), datetime(2026, 7, 7, 15, 0, tzinfo=TZ),
     )
     await db.add_manual_entry(
-        "dyzur", "Urologia",
+        USER, "dyzur", "Urologia",
         datetime(2026, 7, 9, 19, 0, tzinfo=TZ), datetime(2026, 7, 10, 7, 0, tzinfo=TZ),
     )
-    entries = await db.get_entries_for_month(2026, 7)
-    profile = await db.update_profile(rate=50, norm_hours=15, dyzur_bonus_pct=50, night_bonus_pct=20)
+    entries = await db.get_entries_for_month(USER, 2026, 7)
+    profile = await db.update_profile(USER, rate=50, norm_hours=15, dyzur_bonus_pct=50, night_bonus_pct=20)
 
     summary = summarize_month(entries, profile)
     assert summary.total_hours == pytest.approx(20.0)
@@ -59,10 +61,10 @@ async def test_summarize_month_totals_and_overtime():
 
 async def test_summarize_month_no_overtime_under_norm():
     await db.add_manual_entry(
-        "work", "Urologia",
+        USER, "work", "Urologia",
         datetime(2026, 7, 7, 7, 0, tzinfo=TZ), datetime(2026, 7, 7, 15, 0, tzinfo=TZ),
     )
-    entries = await db.get_entries_for_month(2026, 7)
-    profile = await db.update_profile(norm_hours=160)
+    entries = await db.get_entries_for_month(USER, 2026, 7)
+    profile = await db.update_profile(USER, norm_hours=160)
     summary = summarize_month(entries, profile)
     assert summary.overtime_hours == 0.0

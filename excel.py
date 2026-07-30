@@ -49,7 +49,9 @@ def _precise_total_hours(entries: list[Entry]) -> float:
     return round(total_minutes / 60, 2)
 
 
-def generate_month_excel(entries: list[Entry], year: int, month: int, out_path: Path) -> Path:
+def generate_month_excel(
+    entries: list[Entry], year: int, month: int, out_path: Path, doctor_name: str = DOCTOR_NAME,
+) -> Path:
     days_in_month = calendar.monthrange(year, month)[1]
 
     by_day: dict[int, list[Entry]] = {d: [] for d in range(1, days_in_month + 1)}
@@ -71,7 +73,7 @@ def generate_month_excel(entries: list[Entry], year: int, month: int, out_path: 
     ws["A1"].alignment = CENTER
 
     ws.merge_cells(f"A2:{last_col_letter}2")
-    ws["A2"] = f"Lekar {DOCTOR_NAME}    Miesiąc: {MONTH_NAMES_PL[month]}    Rok: {year}"
+    ws["A2"] = f"Lekar {doctor_name}    Miesiąc: {MONTH_NAMES_PL[month]}    Rok: {year}"
     ws["A2"].font = Font(bold=True)
 
     ws.merge_cells(f"A3:{last_col_letter}3")
