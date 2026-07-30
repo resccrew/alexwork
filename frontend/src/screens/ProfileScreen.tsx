@@ -113,6 +113,18 @@ export function ProfileScreen() {
         </div>
       </div>
 
+      <div className="card" style={{ margin: '8px 18px', padding: '6px 16px' }}>
+        <button 
+          className="btn btn-ghost" style={{ width: '100%', fontSize: 13, padding: '8px 0' }}
+          onClick={() => {
+            const current = document.documentElement.dataset.scheme
+            document.documentElement.dataset.scheme = current === 'dark' ? 'light' : 'dark'
+          }}
+        >
+          Переключить тему (Светлая / Тёмная)
+        </button>
+      </div>
+
       <div style={{ textAlign: 'center', padding: '20px 0', fontSize: 12, color: 'var(--muted)' }}>
         MedApp · трекер смен · v1.0
       </div>

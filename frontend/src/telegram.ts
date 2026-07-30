@@ -32,3 +32,16 @@ export function notifyHaptic(type: 'success' | 'error' | 'warning') {
 export function getInitData(): string {
   return getWebApp()?.initData ?? ''
 }
+
+export function confirmAction(message: string, callback: (ok: boolean) => void) {
+  const wa = getWebApp()
+  try {
+    if (wa?.showConfirm && (wa as any).isVersionAtLeast?.('6.2')) {
+      wa.showConfirm(message, callback)
+      return
+    }
+  } catch (e) {
+    console.warn('showConfirm failed, falling back to window.confirm', e)
+  }
+  callback(window.confirm(message))
+}

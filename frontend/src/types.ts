@@ -16,6 +16,7 @@ export interface SummaryDayBar {
   day: number
   minutes: number
   has_dyzur: boolean
+  shifts: number
 }
 
 export interface Summary {

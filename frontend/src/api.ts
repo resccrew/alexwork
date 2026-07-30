@@ -47,6 +47,7 @@ export const api = {
     request<Shift>('/shifts/start', { method: 'POST', body: JSON.stringify({ kind, oddzial }) }),
   stopShift: () => request<Shift>('/shifts/stop', { method: 'POST' }),
   listShifts: (year: number, month: number) => request<Shift[]>(`/shifts?year=${year}&month=${month}`),
+  upcomingShifts: () => request<Shift[]>('/shifts/upcoming'),
   createShift: (payload: ShiftPayload) =>
     request<Shift>('/shifts', { method: 'POST', body: JSON.stringify(payload) }),
   updateShift: (id: number, payload: Partial<ShiftPayload>) =>

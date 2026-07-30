@@ -124,6 +124,12 @@ async def list_shifts(year: int, month: int, user: dict = Depends(get_current_us
     return [entry_to_shift_out(e) for e in entries]
 
 
+@app.get("/api/shifts/upcoming", response_model=list[ShiftOut])
+async def list_upcoming_shifts(user: dict = Depends(get_current_user)):
+    entries = await db.get_upcoming_entries(limit=3)
+    return [entry_to_shift_out(e) for e in entries]
+
+
 @app.post("/api/shifts", response_model=ShiftOut)
 async def create_shift(body: ShiftCreateIn, user: dict = Depends(get_current_user)):
     entry = await db.add_manual_entry(
@@ -167,12 +173,13 @@ async def summary(year: int, month: int, user: dict = Depends(get_current_user))
     for e in entries:
         c = calc.calc_entry(e)
         day = e.start_dt.day
-        bucket = by_day.setdefault(day, {"minutes": 0.0, "has_dyzur": False})
+        bucket = by_day.setdefault(day, {"minutes": 0.0, "has_dyzur": False, "shifts": 0})
         bucket["minutes"] += c.duration_hours * 60
+        bucket["shifts"] += 1
         if e.kind == "dyzur":
             bucket["has_dyzur"] = True
     days = [
-        DayBar(day=d, minutes=round(v["minutes"], 1), has_dyzur=v["has_dyzur"])
+        DayBar(day=d, minutes=round(v["minutes"], 1), has_dyzur=v["has_dyzur"], shifts=v["shifts"])
         for d, v in sorted(by_day.items())
     ]
 

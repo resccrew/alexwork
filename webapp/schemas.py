@@ -52,6 +52,7 @@ class DayBar(BaseModel):
     day: int
     minutes: float
     has_dyzur: bool
+    shifts: int
 
 
 class ProfileOut(BaseModel):

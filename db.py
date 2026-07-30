@@ -246,6 +246,30 @@ async def get_entries_for_month(year: int, month: int) -> list[Entry]:
         return [_row_to_entry(r) for r in rows]
 
 
+async def get_entries_for_year(year: int) -> list[Entry]:
+    """Closed entries whose start date falls within the given year."""
+    prefix = f"{year:04d}-"
+    async with aiosqlite.connect(DB_PATH) as db:
+        cur = await db.execute(
+            "SELECT id, kind, oddzial, start_ts, end_ts, source, created_at, edited "
+            "FROM entries WHERE start_ts LIKE ? AND end_ts IS NOT NULL ORDER BY start_ts ASC",
+            (prefix + "%",),
+        )
+        rows = await cur.fetchall()
+        return [_row_to_entry(r) for r in rows]
+
+
+async def get_upcoming_entries(limit: int = 3) -> list[Entry]:
+    async with aiosqlite.connect(DB_PATH) as db:
+        cur = await db.execute(
+            "SELECT id, kind, oddzial, start_ts, end_ts, source, created_at, edited "
+            "FROM entries WHERE start_ts > ? ORDER BY start_ts ASC LIMIT ?",
+            (now_str(), limit),
+        )
+        rows = await cur.fetchall()
+        return [_row_to_entry(r) for r in rows]
+
+
 async def get_entries_for_day(year: int, month: int, day: int) -> list[Entry]:
     prefix = f"{year:04d}-{month:02d}-{day:02d}"
     async with aiosqlite.connect(DB_PATH) as db:

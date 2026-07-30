@@ -1,4 +1,6 @@
 import { useEffect, useMemo, useState } from 'react'
+import { motion } from 'framer-motion'
+import { Clock, Moon, Activity, Building2 } from 'lucide-react'
 import { api } from '../api'
 import { useApp } from '../context/AppContext'
 import type { Shift, ShiftKind, Summary } from '../types'
@@ -9,10 +11,12 @@ export function ShiftScreen() {
   const { config, profile, showToast } = useApp()
   const [status, setStatus] = useState<Shift | null | undefined>(undefined)
   const [summary, setSummary] = useState<Summary | null>(null)
+  const [upcoming, setUpcoming] = useState<Shift[]>([])
   const [pickerOpen, setPickerOpen] = useState(false)
   const [pendingKind, setPendingKind] = useState<ShiftKind>('work')
   const [pendingDept, setPendingDept] = useState('')
   const [lastChoice, setLastChoice] = useState<{ kind: ShiftKind; oddzial: string }>({ kind: 'work', oddzial: '' })
+  const [confirmStart, setConfirmStart] = useState<{ kind: ShiftKind; oddzial: string } | null>(null)
   const [tick, setTick] = useState(() => Date.now())
   const [busy, setBusy] = useState(false)
 
@@ -22,6 +26,7 @@ export function ShiftScreen() {
   useEffect(() => {
     api.status().then(setStatus).catch(() => setStatus(null))
     api.summary(now.getFullYear(), now.getMonth() + 1).then(setSummary).catch(() => undefined)
+    api.upcomingShifts().then(setUpcoming).catch(() => setUpcoming([]))
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [])
 
@@ -49,6 +54,7 @@ export function ShiftScreen() {
   const reloadSummary = () => {
     const n = new Date()
     api.summary(n.getFullYear(), n.getMonth() + 1).then(setSummary).catch(() => undefined)
+    api.upcomingShifts().then(setUpcoming).catch(() => setUpcoming([]))
   }
 
   const openPicker = () => {
@@ -140,46 +146,72 @@ export function ShiftScreen() {
         </div>
       )}
 
-      <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', padding: '36px 18px 0' }}>
-        <div style={{ position: 'relative', width: 236, height: 236, display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
-          <div style={{ position: 'absolute', width: 236, height: 236, borderRadius: '50%', border: '1px solid var(--border)', opacity: 0.5 }} />
-          <div style={{ position: 'absolute', width: 214, height: 214, borderRadius: '50%', border: '1px solid var(--border)', opacity: 0.7 }} />
+      <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', padding: '40px 18px 0' }}>
+        <div style={{ position: 'relative', width: 260, height: 260, display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
+          
+          {/* Animated decorative rings */}
+          <motion.div
+            animate={{ rotate: 360 }}
+            transition={{ repeat: Infinity, duration: 40, ease: 'linear' }}
+            style={{
+              position: 'absolute', width: 250, height: 250, borderRadius: '50%',
+              border: '1.5px dashed var(--border)', opacity: 0.3
+            }}
+          />
+          <motion.div
+            animate={{ rotate: -360 }}
+            transition={{ repeat: Infinity, duration: 25, ease: 'linear' }}
+            style={{
+              position: 'absolute', width: 216, height: 216, borderRadius: '50%',
+              border: '1px solid var(--border)', opacity: 0.5
+            }}
+          />
+          
+          {/* Pulse glow when active */}
           {status && (
             <div
               style={{
                 position: 'absolute', width: 190, height: 190, borderRadius: '50%',
-                background: ringColor, opacity: 0.25, animation: 'pulseRing 2.4s ease-out infinite',
+                background: ringColor, opacity: 0.25, animation: 'pulseRing 2s ease-out infinite',
               }}
             />
           )}
-          <div style={{ position: 'absolute', width: 190, height: 190, borderRadius: '50%', background: 'var(--surface2)' }} />
-          <button
+          
+          {/* Main Button */}
+          <motion.button
+            whileTap={{ scale: 0.94 }}
+            transition={{ type: 'spring', stiffness: 400, damping: 25 }}
             onClick={onCircleTap}
             disabled={busy}
             style={{
-              width: 146, height: 146, borderRadius: '50%', border: 'none',
-              background: status ? 'var(--chrome)' : 'var(--surface2)',
+              width: 164, height: 164, borderRadius: '50%',
+              border: status ? 'none' : '1px solid var(--border)',
+              background: status 
+                ? 'var(--chrome)' 
+                : 'linear-gradient(145deg, var(--surface), var(--bg))',
+              boxShadow: status
+                ? `0 12px 32px -8px ${ringColor}`
+                : '0 8px 24px -10px rgba(0,0,0,0.3), inset 0 2px 4px rgba(255,255,255,0.03)',
               display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center',
-              cursor: 'pointer', gap: 3, position: 'relative', zIndex: 1, textAlign: 'center', padding: '0 12px',
+              cursor: 'pointer', gap: 4, position: 'relative', zIndex: 1, textAlign: 'center',
+              color: status ? 'var(--chrome-text)' : 'var(--text)',
             }}
           >
             {status ? (
               <>
-                <div style={{ fontSize: 26, fontWeight: 700, color: 'var(--chrome-text)', fontVariantNumeric: 'tabular-nums', letterSpacing: -0.5 }}>
-                  {elapsedH} ч {pad(elapsedM)} м
+                <div style={{ fontSize: 32, fontWeight: 800, fontVariantNumeric: 'tabular-nums', letterSpacing: -1, lineHeight: 1 }}>
+                  {elapsedH}:{pad(elapsedM)}
                 </div>
-                <div style={{ fontSize: 11, fontWeight: 500, color: 'var(--chrome-text)', opacity: 0.7 }}>
-                  {status.kind === 'work' ? 'Praca' : 'Dyżur'} · {status.oddzial}
+                <div style={{ fontSize: 11, fontWeight: 700, opacity: 0.7, textTransform: 'uppercase', letterSpacing: 0.5, marginTop: 4 }}>
+                  {status.kind === 'work' ? 'Praca' : 'Dyżur'}
                 </div>
               </>
             ) : (
-              <div style={{ fontSize: 17, fontWeight: 600, lineHeight: 1.3, color: 'var(--text)' }}>
-                Начать
-                <br />
-                смену
+              <div style={{ fontSize: 18, fontWeight: 700, lineHeight: 1.3, color: 'var(--text)' }}>
+                Начать<br />смену
               </div>
             )}
-          </button>
+          </motion.button>
         </div>
         {status && (
           <div style={{ marginTop: 10, fontSize: 13, color: 'var(--muted)' }}>
@@ -241,64 +273,150 @@ export function ShiftScreen() {
       )}
 
       {summary && (
-        <>
-          <div style={{ display: 'flex', padding: '22px 26px 4px' }}>
-            <MiniStat label="часов" value={fmtHours(summary.total_hours)} />
-            <MiniStat label="dyżury" value={fmtHours(summary.dyzur_hours)} />
-            <MiniStat label="ночных" value={fmtHours(summary.night_hours)} />
+        <div style={{ margin: '24px 18px 12px' }}>
+          <div style={{ fontSize: 13, fontWeight: 700, color: 'var(--text)', marginBottom: 12, display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
+            <span>Итоги месяца</span>
+            <span style={{ color: 'var(--muted)', fontWeight: 500 }}>{monthLabel(now.getFullYear(), now.getMonth() + 1)}</span>
           </div>
-          <div style={{ fontSize: 12, color: 'var(--muted)', padding: '10px 26px 6px' }}>
-            {monthLabel(now.getFullYear(), now.getMonth() + 1)}
+          <div className="card" style={{ display: 'flex', padding: '16px 8px', gap: 8, alignItems: 'center' }}>
+            <MiniStat label="Часы" value={fmtHours(summary.total_hours)} icon={Clock} color="var(--chrome)" />
+            <div style={{ width: 1, height: 32, background: 'var(--border)' }} />
+            <MiniStat label="Dyżury" value={fmtHours(summary.dyzur_hours)} icon={Activity} color="var(--dyzur)" />
+            <div style={{ width: 1, height: 32, background: 'var(--border)' }} />
+            <MiniStat label="Ночные" value={fmtHours(summary.night_hours)} icon={Moon} color="#A78BFA" />
           </div>
-        </>
+        </div>
       )}
 
       {!status && !pickerOpen && departments.length > 0 && (
-        <div style={{ display: 'flex', gap: 10, padding: '8px 18px 10px', overflowX: 'auto' }}>
-          {departments.map((d) => {
-            const primary = d === lastChoice.oddzial
-            return (
-              <div
-                key={d}
-                onClick={() => startShift(lastChoice.kind, d)}
-                style={{
-                  minWidth: 122, background: primary ? 'var(--chrome)' : 'var(--surface)',
-                  border: `1px solid ${primary ? 'var(--chrome)' : 'var(--border)'}`,
-                  borderRadius: 22, padding: '16px 14px', display: 'flex', flexDirection: 'column', gap: 12, cursor: 'pointer',
-                }}
-              >
-                <div
+        <div style={{ margin: '16px 18px 32px' }}>
+          <div style={{ fontSize: 13, fontWeight: 700, color: 'var(--text)', marginBottom: 12 }}>
+            Быстрый старт
+          </div>
+          <div style={{ display: 'flex', gap: 12, overflowX: 'auto', paddingBottom: 24, paddingTop: 8, paddingLeft: 4, paddingRight: 4, marginLeft: -4, marginRight: -4 }}>
+            {departments.map((d) => {
+              const primary = d === lastChoice.oddzial
+              return (
+                <motion.div
+                  whileTap={{ scale: 0.95 }}
+                  key={d}
+                  onClick={() => setConfirmStart({ kind: lastChoice.kind, oddzial: d })}
                   style={{
-                    width: 38, height: 38, borderRadius: 12,
-                    border: `1px solid ${primary ? 'var(--chrome-text)' : 'var(--border)'}`,
-                    display: 'flex', alignItems: 'center', justifyContent: 'center',
+                    minWidth: 140, 
+                    background: primary ? 'color-mix(in srgb, var(--chrome) 12%, transparent)' : 'var(--surface2)',
+                    border: `1px solid ${primary ? 'var(--chrome)' : 'var(--border)'}`,
+                    borderRadius: 20, padding: '16px', display: 'flex', flexDirection: 'column', gap: 14, cursor: 'pointer',
+                    boxShadow: primary ? '0 4px 16px color-mix(in srgb, var(--chrome) 20%, transparent)' : '0 2px 8px rgba(0,0,0,0.05)'
                   }}
                 >
                   <div
                     style={{
-                      width: 10, height: 10, borderRadius: '50%',
-                      border: `1.5px solid ${primary ? 'var(--chrome-text)' : 'var(--text)'}`,
+                      width: 42, height: 42, borderRadius: 12,
+                      background: primary ? 'var(--chrome)' : 'var(--surface)',
+                      color: primary ? 'var(--bg)' : 'var(--muted)',
+                      display: 'flex', alignItems: 'center', justifyContent: 'center',
+                      border: primary ? 'none' : '1px solid var(--border)',
+                      boxShadow: primary ? '0 4px 12px rgba(0,0,0,0.15)' : 'none'
                     }}
-                  />
+                  >
+                    <Building2 size={20} strokeWidth={2.5} />
+                  </div>
+                  <div>
+                    <div style={{ fontSize: 14, fontWeight: 700, color: primary ? 'var(--chrome)' : 'var(--text)', whiteSpace: 'nowrap', marginBottom: 2 }}>
+                      {d}
+                    </div>
+                    <div style={{ fontSize: 12, fontWeight: 600, color: primary ? 'var(--chrome)' : 'var(--muted)', opacity: 0.8 }}>
+                      Начать
+                    </div>
+                  </div>
+                </motion.div>
+              )
+            })}
+          </div>
+        </div>
+      )}
+
+      {/* Upcoming Shifts Section */}
+      <div style={{ margin: '16px 18px 32px' }}>
+        <div style={{ fontSize: 13, fontWeight: 700, color: 'var(--text)', marginBottom: 12 }}>
+          Ближайшие смены
+        </div>
+        {upcoming.length > 0 ? (
+          <div style={{ display: 'flex', flexDirection: 'column', gap: 10 }}>
+            {upcoming.map(s => {
+              const uDate = new Date(s.start)
+              const dateStr = uDate.toLocaleDateString('ru-RU', { day: 'numeric', month: 'short' })
+              return (
+                <div key={s.id} className="card" style={{ padding: '14px 16px', display: 'flex', alignItems: 'center', gap: 12 }}>
+                  <div style={{
+                    width: 40, height: 40, borderRadius: 10,
+                    background: s.kind === 'dyzur' ? 'var(--dyzur-soft)' : 'var(--praca-soft)',
+                    color: s.kind === 'dyzur' ? 'var(--dyzur)' : 'var(--praca)',
+                    display: 'flex', alignItems: 'center', justifyContent: 'center'
+                  }}>
+                    {s.kind === 'dyzur' ? <Moon size={20} /> : <Building2 size={20} />}
+                  </div>
+                  <div style={{ flex: 1 }}>
+                    <div style={{ fontWeight: 600, fontSize: 15, color: 'var(--text)' }}>{s.oddzial}</div>
+                    <div style={{ fontSize: 13, color: 'var(--muted)', marginTop: 2 }}>{dateStr}, {fmtTime(s.start)}</div>
+                  </div>
                 </div>
-                <div style={{ fontSize: 11, color: primary ? 'var(--chrome-text)' : 'var(--muted)', whiteSpace: 'nowrap' }}>
-                  {d}
-                </div>
-                <div style={{ fontSize: 12, fontWeight: 600, color: primary ? 'var(--chrome-text)' : 'var(--text)' }}>Начать</div>
-              </div>
-            )
-          })}
+              )
+            })}
+          </div>
+        ) : (
+          <div className="card" style={{ padding: '24px 16px', textAlign: 'center', background: 'var(--surface2)', border: '1px dashed var(--border)' }}>
+            <div style={{ color: 'var(--text)', fontSize: 14, fontWeight: 600 }}>
+              Нет запланированных смен
+            </div>
+            <div style={{ color: 'var(--muted)', fontSize: 13, marginTop: 4 }}>
+              Будущие смены появятся здесь
+            </div>
+          </div>
+        )}
+      </div>
+
+      {confirmStart && (
+        <div style={{
+          position: 'fixed', top: 0, left: 0, right: 0, bottom: 0, zIndex: 100,
+          background: 'rgba(0,0,0,0.6)', backdropFilter: 'blur(4px)',
+          display: 'flex', alignItems: 'center', justifyContent: 'center'
+        }}>
+          <motion.div
+            initial={{ scale: 0.9, opacity: 0 }}
+            animate={{ scale: 1, opacity: 1 }}
+            className="card"
+            style={{ width: 280, padding: '24px 20px', textAlign: 'center', display: 'flex', flexDirection: 'column', gap: 16, margin: '0 20px' }}
+          >
+            <div style={{ fontSize: 18, fontWeight: 700, lineHeight: 1.3, color: 'var(--text)' }}>Начать смену?</div>
+            <div style={{ fontSize: 14, color: 'var(--muted)', lineHeight: 1.4 }}>
+              Вы действительно хотите начать смену <br />
+              <b style={{ color: 'var(--text)' }}>{confirmStart.kind === 'work' ? 'Praca' : 'Dyżur'}</b> в отделении <b style={{ color: 'var(--text)' }}>{confirmStart.oddzial}</b>?
+            </div>
+            <div style={{ display: 'flex', gap: 10, marginTop: 8 }}>
+              <button className="btn btn-ghost" style={{ flex: 1 }} onClick={() => setConfirmStart(null)}>Отмена</button>
+              <button className="btn btn-primary" style={{ flex: 1, background: 'var(--chrome)', color: 'var(--bg)' }} onClick={() => {
+                startShift(confirmStart.kind, confirmStart.oddzial)
+                setConfirmStart(null)
+              }}>Начать</button>
+            </div>
+          </motion.div>
         </div>
       )}
     </div>
   )
 }
 
-function MiniStat({ label, value }: { label: string; value: string }) {
+function MiniStat({ label, value, icon: Icon, color }: { label: string; value: string; icon: any; color: string }) {
   return (
-    <div style={{ flex: 1, display: 'flex', flexDirection: 'column', gap: 3 }}>
-      <div style={{ fontSize: 20, fontWeight: 700, fontVariantNumeric: 'tabular-nums', letterSpacing: -0.3 }}>{value}</div>
-      <div style={{ fontSize: 13, color: 'var(--muted)' }}>{label}</div>
+    <div style={{ flex: 1, display: 'flex', flexDirection: 'column', gap: 6, alignItems: 'center' }}>
+      <div style={{ display: 'flex', alignItems: 'center', gap: 4, color: 'var(--muted)' }}>
+        <Icon size={14} color={color} />
+        <span style={{ fontSize: 10, fontWeight: 700, textTransform: 'uppercase', letterSpacing: 0.5 }}>{label}</span>
+      </div>
+      <div style={{ fontSize: 22, fontWeight: 800, fontVariantNumeric: 'tabular-nums', letterSpacing: -0.5, color: 'var(--text)' }}>
+        {value}
+      </div>
     </div>
   )
 }

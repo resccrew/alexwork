@@ -18,6 +18,12 @@
   --danger-soft: oklch(0.94 0.05 25);
   --chrome: oklch(0.16 0 0);
   --chrome-text: oklch(0.99 0 0);
+  
+  --purple-0: oklch(0.96 0 0);
+  --purple-1: oklch(0.85 0.1 300);
+  --purple-2: oklch(0.70 0.15 300);
+  --purple-3: oklch(0.55 0.2 300);
+  --purple-4: oklch(0.40 0.2 300);
 }
 
 :root[data-scheme='dark'] {
@@ -39,6 +45,12 @@
   --danger-soft: oklch(0.36 0.07 25);
   --chrome: oklch(0.95 0 0);
   --chrome-text: oklch(0.14 0 0);
+  
+  --purple-0: oklch(0.20 0 0);
+  --purple-1: oklch(0.40 0.1 300);
+  --purple-2: oklch(0.55 0.15 300);
+  --purple-3: oklch(0.70 0.2 300);
+  --purple-4: oklch(0.85 0.2 300);
 }
 
 * {
@@ -53,7 +65,7 @@ body,
 }
 
 body {
-  font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Helvetica, Arial, sans-serif;
+  font-family: 'Plus Jakarta Sans', -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Helvetica, Arial, sans-serif;
   background: var(--bg);
   color: var(--text);
   color-scheme: light dark;
@@ -115,7 +127,8 @@ button {
 .app {
   max-width: 480px;
   margin: 0 auto;
-  min-height: 100svh;
+  height: 100svh;
+  overflow: hidden;
   display: flex;
   flex-direction: column;
   position: relative;
@@ -196,8 +209,7 @@ button {
   right: 0;
   bottom: 0;
   padding: 10px 12px 14px;
-  background: var(--surface);
-  border-top: 1px solid var(--border);
+  background: transparent;
 }
 
 .tabbar-inner {
@@ -225,25 +237,9 @@ button {
 }
 
 .tab.active {
-  background: var(--chrome);
   color: var(--chrome-text);
 }
 
-.tab-icon {
-  width: 16px;
-  height: 16px;
-  border: 1.5px solid currentColor;
-}
-
-.tab-icon.circle {
-  border-radius: 50%;
-}
-.tab-icon.square {
-  border-radius: 4px;
-}
-.tab-icon.filled {
-  background: currentColor;
-}
 
 .tab-label {
   font-size: 11px;

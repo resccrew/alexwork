@@ -34,6 +34,8 @@ declare global {
     close(): void
     onEvent(event: string, cb: () => void): void
     offEvent(event: string, cb: () => void): void
+    showConfirm(message: string, callback: (ok: boolean) => void): void
+    isVersionAtLeast(version: string): boolean
   }
 
   interface Window {

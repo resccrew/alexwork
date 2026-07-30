@@ -10,12 +10,14 @@ export function SummaryScreen() {
   const [summary, setSummary] = useState<Summary | null>(null)
   const [mode, setMode] = useState<'simple' | 'bonus'>('simple')
   const [downloading, setDownloading] = useState(false)
+  const [activeTooltip, setActiveTooltip] = useState<number | null>(null)
 
   const base = new Date()
   const { year, month } = shiftMonth(base.getFullYear(), base.getMonth() + 1, monthOffset)
 
   useEffect(() => {
     api.summary(year, month).then(setSummary).catch(() => setSummary(null))
+    setActiveTooltip(null)
   }, [year, month])
 
   const download = async () => {
@@ -29,7 +31,78 @@ export function SummaryScreen() {
     }
   }
 
-  const maxMinutes = Math.max(1, ...(summary?.days.map((d) => d.minutes) ?? [1]))
+  const daysInMonth = new Date(year, month, 0).getDate()
+  const firstDay = new Date(year, month - 1, 1).getDay()
+  const startOffset = firstDay === 0 ? 6 : firstDay - 1 // 0 for Monday
+
+  const getDayColor = (minutes: number) => {
+    if (minutes < 240) return 'var(--purple-1)'
+    if (minutes < 480) return 'var(--purple-2)'
+    if (minutes < 720) return 'var(--purple-3)'
+    return 'var(--purple-4)'
+  }
+
+  const cells = []
+  for (let i = 0; i < startOffset; i++) {
+    cells.push(<div key={`empty-start-${i}`} style={{ width: 32, height: 32 }} />)
+  }
+  for (let d = 1; d <= daysInMonth; d++) {
+    const data = summary?.days.find((x) => x.day === d)
+    const minutes = data?.minutes ?? 0
+    const isActive = activeTooltip === d
+    cells.push(
+      <div 
+        key={`day-${d}`} 
+        style={{ 
+          position: 'relative',
+          width: 32, 
+          height: 32, 
+          borderRadius: 6, 
+          background: minutes > 0 ? getDayColor(minutes) : 'var(--purple-0)',
+          boxShadow: '0 0 0 1px rgba(0,0,0,0.04) inset',
+          cursor: 'pointer'
+        }} 
+        onClick={() => setActiveTooltip(isActive ? null : d)}
+      >
+        {isActive && (
+          <div style={{
+            position: 'absolute',
+            bottom: '100%',
+            left: '50%',
+            transform: 'translateX(-50%)',
+            marginBottom: 6,
+            padding: '6px 10px',
+            background: 'var(--chrome)',
+            color: 'var(--chrome-text)',
+            borderRadius: 8,
+            fontSize: 12,
+            whiteSpace: 'nowrap',
+            boxShadow: '0 4px 12px rgba(0,0,0,0.15)',
+            zIndex: 10,
+            pointerEvents: 'none',
+            lineHeight: 1.3
+          }}>
+            {data && data.shifts > 0 ? (
+              <>
+                <div style={{ fontWeight: 600 }}>{d} {monthLabel(year, month).split(' ')[0]}</div>
+                <div style={{ opacity: 0.8 }}>{data.shifts} смен{data.shifts === 1 ? 'а' : (data.shifts < 5 ? 'ы' : '')}, {Math.round((data.minutes / 60) * 10) / 10} ч</div>
+              </>
+            ) : (
+              <div>{d} {monthLabel(year, month).split(' ')[0]}: нет смен</div>
+            )}
+            <div style={{
+              position: 'absolute',
+              top: '100%',
+              left: '50%',
+              transform: 'translateX(-50%)',
+              border: '4px solid transparent',
+              borderTopColor: 'var(--chrome)'
+            }} />
+          </div>
+        )}
+      </div>
+    )
+  }
 
   return (
     <div className="screen">
@@ -48,24 +121,19 @@ export function SummaryScreen() {
         <button style={navBtnStyle} onClick={() => setMonthOffset((o) => o + 1)}>›</button>
       </div>
 
-      <div style={{ display: 'flex', padding: '12px 22px 0', height: 118 }}>
-        {summary && summary.days.length > 0 ? (
-          summary.days.map((d) => (
-            <div key={d.day} style={{ flex: 1, position: 'relative', height: '100%' }}>
-              <div
-                style={{
-                  position: 'absolute', left: '50%', transform: 'translateX(-50%)', bottom: 0,
-                  width: 5, height: `${Math.max(6, Math.round((d.minutes / maxMinutes) * 100))}%`,
-                  minHeight: 6, borderRadius: 4, background: d.has_dyzur ? 'var(--dyzur)' : 'var(--text)',
-                }}
-              />
-            </div>
-          ))
-        ) : (
-          <div style={{ flex: 1, textAlign: 'center', color: 'var(--muted)', fontSize: 13, alignSelf: 'center' }}>
-            Нет данных за период
-          </div>
-        )}
+      <div style={{ display: 'flex', padding: '40px 22px 24px', justifyContent: 'center', gap: 12, overflowX: 'auto' }}>
+        <div style={{ display: 'grid', gridTemplateRows: 'repeat(7, 32px)', gap: 6, fontSize: 13, color: 'var(--muted)', textAlign: 'right', lineHeight: '32px' }}>
+          <div>Пн</div>
+          <div style={{ visibility: 'hidden' }}>Вт</div>
+          <div>Ср</div>
+          <div style={{ visibility: 'hidden' }}>Чт</div>
+          <div>Пт</div>
+          <div style={{ visibility: 'hidden' }}>Сб</div>
+          <div style={{ visibility: 'hidden' }}>Вс</div>
+        </div>
+        <div style={{ display: 'grid', gridTemplateRows: 'repeat(7, 32px)', gridAutoFlow: 'column', gap: 6 }}>
+          {cells}
+        </div>
       </div>
       <div style={{ borderTop: '1px solid var(--border)', margin: '0 22px' }} />
 
