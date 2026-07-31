@@ -208,6 +208,7 @@ button {
 }
 
 .tabbar-inner {
+  position: relative;
   display: flex;
   align-items: center;
   background: var(--surface2);
@@ -242,6 +243,35 @@ button {
 }
 .tab.active .tab-label {
   font-weight: 700;
+}
+
+.tab-pill {
+  position: absolute;
+  top: 5px;
+  bottom: 5px;
+  left: 5px;
+  width: calc((100% - 22px) / 4);
+  background: var(--chrome);
+  border-radius: 14px;
+  z-index: 0;
+  transition: transform 0.4s cubic-bezier(0.175, 0.885, 0.32, 1.15);
+}
+
+.tab-icon-wrapper {
+  z-index: 1;
+  position: relative;
+  display: flex;
+  transform: scale(1);
+  transition: transform 0.4s cubic-bezier(0.175, 0.885, 0.32, 1.275);
+}
+
+.tab-icon-wrapper.is-active {
+  transform: scale(1.15);
+}
+
+.tab:active .tab-icon-wrapper {
+  transform: scale(0.9) !important;
+  transition: transform 0.1s;
 }
 
 .toast {
