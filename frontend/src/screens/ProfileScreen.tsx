@@ -2,7 +2,7 @@ import { useEffect, useState } from 'react'
 import { api } from '../api'
 import { useApp } from '../context/AppContext'
 import { Avatar } from '../components/Avatar'
-import { getTelegramUser } from '../telegram'
+import { getTelegramUser, applyScheme } from '../telegram'
 import type { Employment } from '../types'
 
 const EMPLOYMENT_OPTIONS: { id: Employment; label: string }[] = [
@@ -121,7 +121,7 @@ export function ProfileScreen() {
           className="btn btn-ghost" style={{ width: '100%', fontSize: 13, padding: '8px 0' }}
           onClick={() => {
             const current = document.documentElement.dataset.scheme
-            document.documentElement.dataset.scheme = current === 'dark' ? 'light' : 'dark'
+            applyScheme(current === 'dark' ? 'light' : 'dark', true)
           }}
         >
           Переключить тему (Светлая / Тёмная)

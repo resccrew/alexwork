@@ -35,8 +35,19 @@ function applySafeArea(wa: TelegramWebApp) {
   document.documentElement.style.setProperty('--tg-safe-top', `${top}px`)
 }
 
-export function applyScheme(scheme?: string) {
-  document.documentElement.dataset.scheme = scheme === 'dark' ? 'dark' : 'light'
+export function applyScheme(scheme?: string, isManual = false) {
+  const newScheme = scheme === 'dark' ? 'dark' : 'light'
+  if (isManual) {
+    localStorage.setItem('theme', newScheme)
+    document.documentElement.dataset.scheme = newScheme
+  } else {
+    const saved = localStorage.getItem('theme')
+    if (saved) {
+      document.documentElement.dataset.scheme = saved
+    } else {
+      document.documentElement.dataset.scheme = newScheme
+    }
+  }
 }
 
 export function getTelegramUser(): TelegramWebAppUser | undefined {
