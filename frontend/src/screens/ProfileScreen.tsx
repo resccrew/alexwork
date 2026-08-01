@@ -96,6 +96,7 @@ export function ProfileScreen() {
           <div style={{ display: 'flex', alignItems: 'center', position: 'relative' }}>
             <input
               type="number" value={rate} onChange={(e) => setRate(e.target.value)}
+              onKeyDown={(e) => e.key === 'Enter' && e.currentTarget.blur()}
               onBlur={() => commit({ rate: Number(rate) || 0 }, 'rate')} style={{ width: 80 }}
             />
             {renderSaveIndicator('rate')}
@@ -109,6 +110,7 @@ export function ProfileScreen() {
           <div style={{ display: 'flex', alignItems: 'center', position: 'relative' }}>
             <input
               type="number" value={dyzurBonus} onChange={(e) => setDyzurBonus(e.target.value)}
+              onKeyDown={(e) => e.key === 'Enter' && e.currentTarget.blur()}
               onBlur={() => commit({ dyzur_bonus_pct: Number(dyzurBonus) || 0 }, 'dyzurBonus')} style={{ width: 80 }}
             />
             {renderSaveIndicator('dyzurBonus')}
@@ -122,6 +124,7 @@ export function ProfileScreen() {
           <div style={{ display: 'flex', alignItems: 'center', position: 'relative' }}>
             <input
               type="number" value={nightBonus} onChange={(e) => setNightBonus(e.target.value)}
+              onKeyDown={(e) => e.key === 'Enter' && e.currentTarget.blur()}
               onBlur={() => commit({ night_bonus_pct: Number(nightBonus) || 0 }, 'nightBonus')} style={{ width: 80 }}
             />
             {renderSaveIndicator('nightBonus')}
@@ -139,6 +142,7 @@ export function ProfileScreen() {
           <div style={{ display: 'flex', alignItems: 'center', position: 'relative' }}>
             <input
               type="number" value={norm} onChange={(e) => setNorm(e.target.value)}
+              onKeyDown={(e) => e.key === 'Enter' && e.currentTarget.blur()}
               onBlur={() => commit({ norm_hours: Number(norm) || 0 }, 'norm')} style={{ width: 80 }}
             />
             {renderSaveIndicator('norm')}
