@@ -48,7 +48,7 @@ export function ShiftEditForm({ draft, departments, title, busy, onChange, onSav
 
       <div style={{ display: 'flex', gap: 8, marginBottom: 12 }}>
         <div style={{ flex: 1, minWidth: 0 }}>
-          <div style={{ fontSize: 11, color: 'var(--muted)', marginBottom: 5 }}>Начало</div>
+          <div style={{ fontSize: 11, color: 'var(--muted)', marginBottom: 5 }}>Początek</div>
           <input
             type="time" value={draft.start}
             onChange={(e) => onChange({ ...draft, start: e.target.value })}
@@ -56,7 +56,7 @@ export function ShiftEditForm({ draft, departments, title, busy, onChange, onSav
           />
         </div>
         <div style={{ flex: 1, minWidth: 0 }}>
-          <div style={{ fontSize: 11, color: 'var(--muted)', marginBottom: 5 }}>Конец</div>
+          <div style={{ fontSize: 11, color: 'var(--muted)', marginBottom: 5 }}>Koniec</div>
           <input
             type="time" value={draft.end}
             onChange={(e) => onChange({ ...draft, end: e.target.value })}
@@ -65,7 +65,7 @@ export function ShiftEditForm({ draft, departments, title, busy, onChange, onSav
         </div>
       </div>
 
-      <div style={{ fontSize: 11, color: 'var(--muted)', marginBottom: 6 }}>Тип</div>
+      <div style={{ fontSize: 11, color: 'var(--muted)', marginBottom: 6 }}>Typ</div>
       <div style={{ display: 'flex', gap: 8, marginBottom: 12 }}>
         <button style={typeBtnStyle(draft.kind === 'work', 'var(--praca)', 'var(--praca-soft)')} onClick={() => onChange({ ...draft, kind: 'work' })}>
           Praca
@@ -97,14 +97,14 @@ export function ShiftEditForm({ draft, departments, title, busy, onChange, onSav
               color: 'var(--danger)', border: '1px solid var(--danger)', background: 'transparent', cursor: 'pointer',
             }}
           >
-            Удалить
+            Usuń
           </button>
         )}
         <button className="btn btn-ghost" style={{ flex: 1 }} onClick={onCancel}>
-          Отмена
+          Anuluj
         </button>
         <button className="btn btn-primary" style={{ flex: 2 }} disabled={busy} onClick={onSave}>
-          Сохранить
+          Zapisz
         </button>
       </div>
     </div>

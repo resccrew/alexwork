@@ -46,10 +46,10 @@ export function ShiftScreen() {
 
   const greeting = useMemo(() => {
     const h = new Date(tick).getHours()
-    if (h < 5) return 'Доброй ночи'
-    if (h < 12) return 'Доброе утро'
-    if (h < 18) return 'Добрый день'
-    return 'Добрый вечер'
+    if (h < 5) return 'Dobrej nocy'
+    if (h < 12) return 'Dzień dobry'
+    if (h < 18) return 'Dzień dobry'
+    return 'Dobry wieczór'
   }, [tick])
 
   const reloadSummary = () => {
@@ -75,7 +75,7 @@ export function ShiftScreen() {
       setPickerOpen(false)
       notifyHaptic('success')
     } catch (e) {
-      showToast(e instanceof Error ? e.message : 'Не удалось начать смену')
+      showToast(e instanceof Error ? e.message : 'Nie udało się rozpocząć zmiany')
     } finally {
       setBusy(false)
     }
@@ -88,10 +88,10 @@ export function ShiftScreen() {
       const closed = await api.stopShift()
       setStatus(null)
       notifyHaptic('success')
-      showToast(`Смена завершена · ${fmtHours(closed.hours ?? 0)} ч`)
+      showToast(`Zmiana zakończona · ${fmtHours(closed.hours ?? 0)} g`)
       reloadSummary()
     } catch (e) {
-      showToast(e instanceof Error ? e.message : 'Не удалось закончить смену')
+      showToast(e instanceof Error ? e.message : 'Nie udało się zakończyć zmiany')
     } finally {
       setBusy(false)
     }
@@ -112,7 +112,7 @@ export function ShiftScreen() {
   if (status === undefined) {
     return (
       <div className="screen">
-        <div className="center-loading">Загрузка…</div>
+        <div className="center-loading">Ładowanie…</div>
       </div>
     )
   }
@@ -128,7 +128,7 @@ export function ShiftScreen() {
       <div className="header">
         <div>
           <div className="eyebrow">{greeting}</div>
-          <div className="title">Смена</div>
+          <div className="title">Zmiana</div>
         </div>
         <Avatar />
       </div>
@@ -140,9 +140,9 @@ export function ShiftScreen() {
             borderRadius: 14, padding: '14px 16px', display: 'flex', flexDirection: 'column', gap: 8,
           }}
         >
-          <div style={{ fontSize: 14, fontWeight: 600 }}>Похоже, смена не закрыта</div>
+          <div style={{ fontSize: 14, fontWeight: 600 }}>Wygląda na to, że zmiana nie jest zamknięta</div>
           <div style={{ fontSize: 13, color: 'var(--muted)', lineHeight: 1.4 }}>
-            Идёт больше 24 часов. Проверьте и исправьте время окончания в Истории.
+            Trwa ponad 24 godziny. Sprawdź i popraw czas zakończenia w Historii.
           </div>
         </div>
       )}
@@ -209,21 +209,21 @@ export function ShiftScreen() {
               </>
             ) : (
               <div style={{ fontSize: 18, fontWeight: 700, lineHeight: 1.3, color: 'var(--text)' }}>
-                Начать<br />смену
+                Rozpocznij<br />zmianę
               </div>
             )}
           </motion.button>
         </div>
         {status && (
           <div style={{ marginTop: 10, fontSize: 13, color: 'var(--muted)' }}>
-            Начало в {fmtTime(status.start)} · нажмите на круг, чтобы закончить
+            Początek o {fmtTime(status.start)} · naciśnij koło, aby zakończyć
           </div>
         )}
       </div>
 
       {pickerOpen && !status && (
         <div className="card" style={{ margin: '10px 18px 0', animation: 'fadeUp .18s ease-out' }}>
-          <div style={{ fontSize: 13, fontWeight: 600, color: 'var(--muted)', marginBottom: 8 }}>Тип смены</div>
+          <div style={{ fontSize: 13, fontWeight: 600, color: 'var(--muted)', marginBottom: 8 }}>Typ zmiany</div>
           <div style={{ display: 'flex', gap: 8, marginBottom: 14 }}>
             <button
               style={{
@@ -253,13 +253,13 @@ export function ShiftScreen() {
             {departments.map((d) => (
               <div key={d} className={`list-option${pendingDept === d ? ' selected' : ''}`} onClick={() => setPendingDept(d)}>
                 <span>{d}</span>
-                {pendingDept === d && <span style={{ fontSize: 12, color: 'var(--muted)' }}>выбрано</span>}
+                {pendingDept === d && <span style={{ fontSize: 12, color: 'var(--muted)' }}>wybrano</span>}
               </div>
             ))}
           </div>
           <div style={{ display: 'flex', gap: 10 }}>
             <button className="btn btn-ghost" style={{ flex: 1 }} onClick={() => setPickerOpen(false)}>
-              Отмена
+              Anuluj
             </button>
             <button
               className="btn btn-primary"
@@ -267,7 +267,7 @@ export function ShiftScreen() {
               disabled={busy || !pendingDept}
               onClick={() => startShift(pendingKind, pendingDept)}
             >
-              Начать
+              Rozpocznij
             </button>
           </div>
         </div>
@@ -276,15 +276,15 @@ export function ShiftScreen() {
       {summary && (
         <div style={{ margin: '24px 18px 12px' }}>
           <div style={{ fontSize: 13, fontWeight: 700, color: 'var(--text)', marginBottom: 12, display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
-            <span>Итоги месяца</span>
+            <span>Podsumowanie miesiąca</span>
             <span style={{ color: 'var(--muted)', fontWeight: 500 }}>{monthLabel(now.getFullYear(), now.getMonth() + 1)}</span>
           </div>
           <div className="card" style={{ display: 'flex', padding: '16px 8px', gap: 8, alignItems: 'center' }}>
-            <MiniStat label="Часы" value={fmtHours(summary.total_hours)} icon={Clock} color="var(--chrome)" />
+            <MiniStat label="Godziny" value={fmtHours(summary.total_hours)} icon={Clock} color="var(--chrome)" />
             <div style={{ width: 1, height: 32, background: 'var(--border)' }} />
             <MiniStat label="Dyżury" value={fmtHours(summary.dyzur_hours)} icon={Activity} color="var(--dyzur)" />
             <div style={{ width: 1, height: 32, background: 'var(--border)' }} />
-            <MiniStat label="Ночные" value={fmtHours(summary.night_hours)} icon={Moon} color="#A78BFA" />
+            <MiniStat label="Nocne" value={fmtHours(summary.night_hours)} icon={Moon} color="#A78BFA" />
           </div>
         </div>
       )}
@@ -292,7 +292,7 @@ export function ShiftScreen() {
       {!status && !pickerOpen && departments.length > 0 && (
         <div style={{ margin: '16px 18px 32px' }}>
           <div style={{ fontSize: 13, fontWeight: 700, color: 'var(--text)', marginBottom: 12 }}>
-            Быстрый старт
+            Szybki start
           </div>
           <div style={{ display: 'flex', gap: 12, overflowX: 'auto', paddingBottom: 24, paddingTop: 8, paddingLeft: 4, paddingRight: 4, marginLeft: -4, marginRight: -4 }}>
             {departments.map((d) => {
@@ -327,7 +327,7 @@ export function ShiftScreen() {
                       {d}
                     </div>
                     <div style={{ fontSize: 12, fontWeight: 600, color: primary ? 'var(--chrome)' : 'var(--muted)', opacity: 0.8 }}>
-                      Начать
+                      Rozpocznij
                     </div>
                   </div>
                 </motion.div>
@@ -340,13 +340,13 @@ export function ShiftScreen() {
       {/* Upcoming Shifts Section */}
       <div style={{ margin: '16px 18px 32px' }}>
         <div style={{ fontSize: 13, fontWeight: 700, color: 'var(--text)', marginBottom: 12 }}>
-          Ближайшие смены
+          Najbliższe zmiany
         </div>
         {upcoming.length > 0 ? (
           <div style={{ display: 'flex', flexDirection: 'column', gap: 10 }}>
             {upcoming.map(s => {
               const uDate = new Date(s.start)
-              const dateStr = uDate.toLocaleDateString('ru-RU', { day: 'numeric', month: 'short' })
+              const dateStr = uDate.toLocaleDateString('pl-PL', { day: 'numeric', month: 'short' })
               return (
                 <div key={s.id} className="card" style={{ padding: '14px 16px', display: 'flex', alignItems: 'center', gap: 12 }}>
                   <div style={{
@@ -368,10 +368,10 @@ export function ShiftScreen() {
         ) : (
           <div className="card" style={{ padding: '24px 16px', textAlign: 'center', background: 'var(--surface2)', border: '1px dashed var(--border)' }}>
             <div style={{ color: 'var(--text)', fontSize: 14, fontWeight: 600 }}>
-              Нет запланированных смен
+              Brak zaplanowanych zmian
             </div>
             <div style={{ color: 'var(--muted)', fontSize: 13, marginTop: 4 }}>
-              Будущие смены появятся здесь
+              Przyszłe zmiany pojawią się tutaj
             </div>
           </div>
         )}
@@ -389,17 +389,17 @@ export function ShiftScreen() {
             className="card"
             style={{ width: 280, padding: '24px 20px', textAlign: 'center', display: 'flex', flexDirection: 'column', gap: 16, margin: '0 20px' }}
           >
-            <div style={{ fontSize: 18, fontWeight: 700, lineHeight: 1.3, color: 'var(--text)' }}>Начать смену?</div>
+            <div style={{ fontSize: 18, fontWeight: 700, lineHeight: 1.3, color: 'var(--text)' }}>Rozpocząć zmianę?</div>
             <div style={{ fontSize: 14, color: 'var(--muted)', lineHeight: 1.4 }}>
-              Вы действительно хотите начать смену <br />
-              <b style={{ color: 'var(--text)' }}>{confirmStart.kind === 'work' ? 'Praca' : 'Dyżur'}</b> в отделении <b style={{ color: 'var(--text)' }}>{confirmStart.oddzial}</b>?
+              Czy na pewno chcesz rozpocząć zmianę <br />
+              <b style={{ color: 'var(--text)' }}>{confirmStart.kind === 'work' ? 'Praca' : 'Dyżur'}</b> w oddziale <b style={{ color: 'var(--text)' }}>{confirmStart.oddzial}</b>?
             </div>
             <div style={{ display: 'flex', gap: 10, marginTop: 8 }}>
-              <button className="btn btn-ghost" style={{ flex: 1 }} onClick={() => setConfirmStart(null)}>Отмена</button>
+              <button className="btn btn-ghost" style={{ flex: 1 }} onClick={() => setConfirmStart(null)}>Anuluj</button>
               <button className="btn btn-primary" style={{ flex: 1, background: 'var(--chrome)', color: 'var(--bg)' }} onClick={() => {
                 startShift(confirmStart.kind, confirmStart.oddzial)
                 setConfirmStart(null)
-              }}>Начать</button>
+              }}>Rozpocznij</button>
             </div>
           </motion.div>
         </div>

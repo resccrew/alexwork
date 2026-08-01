@@ -3,10 +3,10 @@ import { Home, History, BarChart2, User } from 'lucide-react'
 export type TabId = 'shift' | 'history' | 'summary' | 'profile'
 
 const TABS: { id: TabId; label: string; icon: React.ElementType }[] = [
-  { id: 'shift', label: 'Смена', icon: Home },
-  { id: 'history', label: 'История', icon: History },
-  { id: 'summary', label: 'Итоги', icon: BarChart2 },
-  { id: 'profile', label: 'Профиль', icon: User },
+  { id: 'shift', label: 'Zmiana', icon: Home },
+  { id: 'history', label: 'Historia', icon: History },
+  { id: 'summary', label: 'Podsumowanie', icon: BarChart2 },
+  { id: 'profile', label: 'Profil', icon: User },
 ]
 
 export function TabBar({ active, onChange }: { active: TabId; onChange: (id: TabId) => void }) {

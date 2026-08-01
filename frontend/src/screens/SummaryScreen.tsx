@@ -25,9 +25,9 @@ export function SummaryScreen() {
     setDownloading(true)
     try {
       await api.sendReport(year, month)
-      showToast('Отчёт отправлен в чат с ботом')
+      showToast('Raport wysłany na czat bota')
     } catch (e) {
-      showToast(e instanceof Error ? e.message : 'Не удалось отправить отчёт')
+      showToast(e instanceof Error ? e.message : 'Nie udało się wysłać raportu')
     } finally {
       setDownloading(false)
     }
@@ -87,10 +87,10 @@ export function SummaryScreen() {
             {data && data.shifts > 0 ? (
               <>
                 <div style={{ fontWeight: 600 }}>{d} {monthLabel(year, month).split(' ')[0]}</div>
-                <div style={{ opacity: 0.8 }}>{data.shifts} смен{data.shifts === 1 ? 'а' : (data.shifts < 5 ? 'ы' : '')}, {Math.round((data.minutes / 60) * 10) / 10} ч</div>
+                <div style={{ opacity: 0.8 }}>{data.shifts} {data.shifts === 1 ? 'zmiana' : (data.shifts < 5 ? 'zmiany' : 'zmian')}, {Math.round((data.minutes / 60) * 10) / 10} g</div>
               </>
             ) : (
-              <div>{d} {monthLabel(year, month).split(' ')[0]}: нет смен</div>
+              <div>{d} {monthLabel(year, month).split(' ')[0]}: brak zmian</div>
             )}
             <div style={{
               position: 'absolute',
@@ -110,8 +110,8 @@ export function SummaryScreen() {
     <div className="screen">
       <div className="header">
         <div>
-          <div className="eyebrow">итоги</div>
-          <div className="title">{summary ? `${fmtHours(summary.total_hours)} ч` : '…'}</div>
+          <div className="eyebrow">podsumowanie</div>
+          <div className="title">{summary ? `${fmtHours(summary.total_hours)} g` : '…'}</div>
         </div>
         <Avatar />
       </div>
@@ -125,13 +125,13 @@ export function SummaryScreen() {
 
       <div style={{ display: 'flex', padding: '40px 22px 24px', justifyContent: 'center', gap: 12, overflowX: 'auto' }}>
         <div style={{ display: 'grid', gridTemplateRows: 'repeat(7, 32px)', gap: 6, fontSize: 13, color: 'var(--muted)', textAlign: 'right', lineHeight: '32px' }}>
-          <div>Пн</div>
-          <div style={{ visibility: 'hidden' }}>Вт</div>
-          <div>Ср</div>
-          <div style={{ visibility: 'hidden' }}>Чт</div>
-          <div>Пт</div>
-          <div style={{ visibility: 'hidden' }}>Сб</div>
-          <div style={{ visibility: 'hidden' }}>Вс</div>
+          <div>Pn</div>
+          <div style={{ visibility: 'hidden' }}>Wt</div>
+          <div>Śr</div>
+          <div style={{ visibility: 'hidden' }}>Cz</div>
+          <div>Pt</div>
+          <div style={{ visibility: 'hidden' }}>Sb</div>
+          <div style={{ visibility: 'hidden' }}>Nd</div>
         </div>
         <div style={{ display: 'grid', gridTemplateRows: 'repeat(7, 32px)', gridAutoFlow: 'column', gap: 6 }}>
           {cells}
@@ -140,16 +140,16 @@ export function SummaryScreen() {
       <div style={{ borderTop: '1px solid var(--border)', margin: '0 22px' }} />
 
       <div style={{ display: 'flex', gap: 10, padding: '16px 18px 0', overflowX: 'auto' }}>
-        <StatCard primary label="всего часов" value={summary ? fmtHours(summary.total_hours) : '—'} />
+        <StatCard primary label="suma godzin" value={summary ? fmtHours(summary.total_hours) : '—'} />
         <StatCard label="praca" value={summary ? fmtHours(summary.praca_hours) : '—'} />
         <StatCard label="dyżury" value={summary ? fmtHours(summary.dyzur_hours) : '—'} />
-        <StatCard label="ночных" value={summary ? fmtHours(summary.night_hours) : '—'} />
-        <StatCard label="переработка" value={summary ? fmtHours(summary.overtime_hours) : '—'} />
+        <StatCard label="nocne" value={summary ? fmtHours(summary.night_hours) : '—'} />
+        <StatCard label="nadgodziny" value={summary ? fmtHours(summary.overtime_hours) : '—'} />
       </div>
 
       <div className="card" style={{ margin: '16px 18px 0' }}>
         <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: 12 }}>
-          <div style={{ fontSize: 13, fontWeight: 600, color: 'var(--muted)' }}>Заработок</div>
+          <div style={{ fontSize: 13, fontWeight: 600, color: 'var(--muted)' }}>Zarobki</div>
           <div style={{ display: 'flex', background: 'var(--surface2)', borderRadius: 10, padding: 2 }}>
             <button
               onClick={() => setMode('simple')}
@@ -158,7 +158,7 @@ export function SummaryScreen() {
                 color: mode === 'simple' ? 'var(--text)' : 'var(--muted)', background: mode === 'simple' ? 'var(--surface)' : 'transparent',
               }}
             >
-              Без надбавок
+              Bez dodatków
             </button>
             <button
               onClick={() => setMode('bonus')}
@@ -167,7 +167,7 @@ export function SummaryScreen() {
                 color: mode === 'bonus' ? 'var(--text)' : 'var(--muted)', background: mode === 'bonus' ? 'var(--surface)' : 'transparent',
               }}
             >
-              С надбавками
+              Z dodatkami
             </button>
           </div>
         </div>
@@ -175,16 +175,16 @@ export function SummaryScreen() {
           {summary ? fmtMoney(mode === 'simple' ? summary.earnings_simple : summary.earnings_bonus) : '—'}
         </div>
         <div style={{ fontSize: 12, color: 'var(--muted)', marginTop: 4 }}>
-          по ставке {profile?.rate ?? 0} zł/ч{mode === 'bonus' ? ' + надбавки за dyżur и ночные' : ''}
+          ze stawką {profile?.rate ?? 0} zł/g{mode === 'bonus' ? ' + dodatki za dyżur i nocne' : ''}
         </div>
       </div>
 
       <div style={{ padding: '16px 18px 8px' }}>
         <button className="btn btn-primary" style={{ width: '100%' }} disabled={downloading} onClick={download}>
-          {downloading ? 'Отправляем…' : 'Отправить отчёт (Excel)'}
+          {downloading ? 'Wysyłanie…' : 'Wyślij raport (Excel)'}
         </button>
         <div style={{ textAlign: 'center', fontSize: 12, color: 'var(--muted)', marginTop: 8 }}>
-          Придёт файлом в чат с ботом — считать вручную не нужно
+          Przyjdzie plikiem na czat bota — nie trzeba liczyć ręcznie
         </div>
       </div>
     </div>

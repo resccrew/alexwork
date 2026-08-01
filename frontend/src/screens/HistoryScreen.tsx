@@ -52,7 +52,7 @@ function groupByDay(shifts: Shift[]): [string, Shift[]][] {
 
 function dayLabel(dateStr: string): string {
   const d = new Date(`${dateStr}T00:00:00`)
-  return d.toLocaleDateString('ru-RU', { weekday: 'long', day: 'numeric', month: 'long' })
+  return d.toLocaleDateString('pl-PL', { weekday: 'long', day: 'numeric', month: 'long' })
 }
 
 export function HistoryScreen() {
@@ -111,15 +111,15 @@ export function HistoryScreen() {
       const payload = draftToPayload(draft)
       if (addingNew) {
         await api.createShift(payload)
-        showToast('Смена добавлена')
+        showToast('Zmiana dodana')
       } else if (draft.id) {
         await api.updateShift(draft.id, payload)
-        showToast('Изменения сохранены')
+        showToast('Zmiany zapisane')
       }
       cancelEdit()
       load()
     } catch (e) {
-      showToast(e instanceof Error ? e.message : 'Не удалось сохранить')
+      showToast(e instanceof Error ? e.message : 'Nie udało się zapisać')
     } finally {
       setBusy(false)
     }
@@ -130,11 +130,11 @@ export function HistoryScreen() {
     setBusy(true)
     try {
       await api.deleteShift(draft.id)
-      showToast('Смена удалена')
+      showToast('Zmiana usunięta')
       cancelEdit()
       load()
     } catch (e) {
-      showToast(e instanceof Error ? e.message : 'Не удалось удалить')
+      showToast(e instanceof Error ? e.message : 'Nie udało się usunąć')
     } finally {
       setBusy(false)
     }
@@ -146,8 +146,8 @@ export function HistoryScreen() {
     <div className="screen">
       <div className="header">
         <div>
-          <div className="eyebrow">история</div>
-          <div className="title">{shifts ? `${shifts.length} смен` : '…'}</div>
+          <div className="eyebrow">historia</div>
+          <div className="title">{shifts ? `${shifts.length} zmian` : '…'}</div>
         </div>
         <button
           onClick={openAddNew}
@@ -156,7 +156,7 @@ export function HistoryScreen() {
             borderRadius: 20, border: '1px solid var(--border)', whiteSpace: 'nowrap', background: 'transparent',
           }}
         >
-          + задним числом
+          + dodaj wpis
         </button>
       </div>
 
@@ -171,7 +171,7 @@ export function HistoryScreen() {
       {addingNew && draft && (
         <div style={{ margin: '0 18px 16px' }}>
           <ShiftEditForm
-            draft={draft} departments={departments} title="Новая смена" busy={busy}
+            draft={draft} departments={departments} title="Nowa zmiana" busy={busy}
             onChange={setDraft} onSave={saveDraft} onCancel={cancelEdit}
           />
         </div>
@@ -188,7 +188,7 @@ export function HistoryScreen() {
                 editingId === s.id && draft ? (
                   <ShiftEditForm
                     key={s.id}
-                    draft={draft} departments={departments} title="Изменить смену" busy={busy}
+                    draft={draft} departments={departments} title="Edytuj zmianę" busy={busy}
                     onChange={setDraft} onSave={saveDraft} onCancel={cancelEdit} onDelete={deleteShift}
                   />
                 ) : (
@@ -200,7 +200,7 @@ export function HistoryScreen() {
         ))}
         {shifts && grouped.length === 0 && (
           <div style={{ textAlign: 'center', padding: '40px 0', color: 'var(--muted)', fontSize: 14 }}>
-            В этом месяце смен нет
+            Brak zmian w tym miesiącu
           </div>
         )}
       </div>
@@ -229,16 +229,16 @@ function ShiftRow({ shift, onOpen }: { shift: Shift; onOpen: () => void }) {
           </span>
           <span className="pill" style={{ background: pillBg, color: pillColor }}>{praca ? 'Praca' : 'Dyżur'}</span>
           {!!shift.night_hours && shift.night_hours > 0 && (
-            <span className="pill" style={{ background: 'var(--night-soft)', color: 'var(--night)' }}>ночь</span>
+            <span className="pill" style={{ background: 'var(--night-soft)', color: 'var(--night)' }}>noc</span>
           )}
         </div>
         <div style={{ fontSize: 12, color: 'var(--muted)', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
           {shift.oddzial}
-          {shift.edited ? ' · исправлено вручную' : ''}
+          {shift.edited ? ' · poprawiono ręcznie' : ''}
         </div>
       </div>
       <div style={{ fontSize: 14, fontWeight: 700, fontVariantNumeric: 'tabular-nums' }}>
-        {shift.hours != null ? `${fmtHours(shift.hours)} ч` : '—'}
+        {shift.hours != null ? `${fmtHours(shift.hours)} g` : '—'}
       </div>
     </div>
   )
