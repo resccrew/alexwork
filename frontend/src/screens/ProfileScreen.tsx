@@ -2,8 +2,9 @@ import { useEffect, useState } from 'react'
 import { api } from '../api'
 import { useApp } from '../context/AppContext'
 import { Avatar } from '../components/Avatar'
-import { getTelegramUser, applyScheme } from '../telegram'
+import { getTelegramUser, applyScheme, haptic } from '../telegram'
 import type { Employment } from '../types'
+import { Wallet, Percent, Clock, Building2, SunMoon, Check } from 'lucide-react'
 
 const EMPLOYMENT_OPTIONS: { id: Employment; label: string }[] = [
   { id: 'etat', label: 'Etat' },
@@ -17,6 +18,9 @@ export function ProfileScreen() {
   const [norm, setNorm] = useState('')
   const [dyzurBonus, setDyzurBonus] = useState('')
   const [nightBonus, setNightBonus] = useState('')
+  
+  const [isDark, setIsDark] = useState(false)
+  const [savedField, setSavedField] = useState<string | null>(null)
 
   useEffect(() => {
     if (!profile) return
@@ -26,16 +30,31 @@ export function ProfileScreen() {
     setNightBonus(String(profile.night_bonus_pct))
   }, [profile])
 
+  useEffect(() => {
+    setIsDark(document.documentElement.dataset.scheme === 'dark')
+  }, [])
+
   const departments = config?.departments ?? []
   const telegramUser = getTelegramUser()
 
-  const commit = async (fields: Record<string, unknown>) => {
+  const commit = async (fields: Record<string, unknown>, fieldName?: string) => {
     try {
       const updated = await api.updateProfile(fields)
       setProfile(updated)
+      if (fieldName) {
+        setSavedField(fieldName)
+        setTimeout(() => setSavedField(null), 2500)
+      }
     } catch (e) {
       showToast(e instanceof Error ? e.message : 'Nie udało się zapisać')
     }
+  }
+
+  const toggleTheme = () => {
+    haptic('light')
+    const newTheme = isDark ? 'light' : 'dark'
+    setIsDark(!isDark)
+    applyScheme(newTheme, true)
   }
 
   if (!profile) {
@@ -44,6 +63,17 @@ export function ProfileScreen() {
         <div className="center-loading">Ładowanie…</div>
       </div>
     )
+  }
+
+  const renderSaveIndicator = (field: string) => {
+    if (savedField === field) {
+      return (
+        <div className="save-indicator" style={{ position: 'absolute', right: -28 }}>
+          <Check size={18} strokeWidth={3} />
+        </div>
+      )
+    }
+    return null
   }
 
   return (
@@ -56,57 +86,101 @@ export function ProfileScreen() {
         </div>
       </div>
 
-      <div className="card" style={{ margin: '8px 18px', padding: '6px 16px' }}>
-        <div className="field-row">
-          <div style={{ fontSize: 14 }}>Stawka, zł/g</div>
-          <input
-            type="number" value={rate} onChange={(e) => setRate(e.target.value)}
-            onBlur={() => commit({ rate: Number(rate) || 0 })} style={{ width: 80 }}
-          />
+      <div className="settings-section-title">Finanse</div>
+      <div className="card" style={{ margin: '0 18px', padding: '6px 16px' }}>
+        <div className="field-row" style={{ position: 'relative' }}>
+          <div style={{ display: 'flex', alignItems: 'center', gap: 10, fontSize: 14 }}>
+            <Wallet size={18} color="var(--muted)" />
+            <span>Stawka, zł/g</span>
+          </div>
+          <div style={{ display: 'flex', alignItems: 'center', position: 'relative' }}>
+            <input
+              type="number" value={rate} onChange={(e) => setRate(e.target.value)}
+              onBlur={() => commit({ rate: Number(rate) || 0 }, 'rate')} style={{ width: 80 }}
+            />
+            {renderSaveIndicator('rate')}
+          </div>
         </div>
-        <div className="field-row">
-          <div style={{ fontSize: 14 }}>Miesięczna norma, g</div>
-          <input
-            type="number" value={norm} onChange={(e) => setNorm(e.target.value)}
-            onBlur={() => commit({ norm_hours: Number(norm) || 0 })} style={{ width: 80 }}
-          />
+        <div className="field-row" style={{ position: 'relative' }}>
+          <div style={{ display: 'flex', alignItems: 'center', gap: 10, fontSize: 14 }}>
+            <Percent size={18} color="var(--dyzur)" />
+            <span>Dodatek za dyżur, %</span>
+          </div>
+          <div style={{ display: 'flex', alignItems: 'center', position: 'relative' }}>
+            <input
+              type="number" value={dyzurBonus} onChange={(e) => setDyzurBonus(e.target.value)}
+              onBlur={() => commit({ dyzur_bonus_pct: Number(dyzurBonus) || 0 }, 'dyzurBonus')} style={{ width: 80 }}
+            />
+            {renderSaveIndicator('dyzurBonus')}
+          </div>
         </div>
-        <div className="field-row">
-          <div style={{ fontSize: 14 }}>Dodatek za dyżur, %</div>
-          <input
-            type="number" value={dyzurBonus} onChange={(e) => setDyzurBonus(e.target.value)}
-            onBlur={() => commit({ dyzur_bonus_pct: Number(dyzurBonus) || 0 })} style={{ width: 80 }}
-          />
+        <div className="field-row" style={{ position: 'relative' }}>
+          <div style={{ display: 'flex', alignItems: 'center', gap: 10, fontSize: 14 }}>
+            <Percent size={18} color="#A78BFA" />
+            <span>Dodatek za nocne, %</span>
+          </div>
+          <div style={{ display: 'flex', alignItems: 'center', position: 'relative' }}>
+            <input
+              type="number" value={nightBonus} onChange={(e) => setNightBonus(e.target.value)}
+              onBlur={() => commit({ night_bonus_pct: Number(nightBonus) || 0 }, 'nightBonus')} style={{ width: 80 }}
+            />
+            {renderSaveIndicator('nightBonus')}
+          </div>
         </div>
-        <div className="field-row">
-          <div style={{ fontSize: 14 }}>Dodatek za nocne, %</div>
-          <input
-            type="number" value={nightBonus} onChange={(e) => setNightBonus(e.target.value)}
-            onBlur={() => commit({ night_bonus_pct: Number(nightBonus) || 0 })} style={{ width: 80 }}
-          />
+      </div>
+
+      <div className="settings-section-title">Zatrudnienie</div>
+      <div className="card" style={{ margin: '0 18px', padding: '6px 16px' }}>
+        <div className="field-row" style={{ position: 'relative' }}>
+          <div style={{ display: 'flex', alignItems: 'center', gap: 10, fontSize: 14 }}>
+            <Clock size={18} color="var(--muted)" />
+            <span>Miesięczna norma, g</span>
+          </div>
+          <div style={{ display: 'flex', alignItems: 'center', position: 'relative' }}>
+            <input
+              type="number" value={norm} onChange={(e) => setNorm(e.target.value)}
+              onBlur={() => commit({ norm_hours: Number(norm) || 0 }, 'norm')} style={{ width: 80 }}
+            />
+            {renderSaveIndicator('norm')}
+          </div>
         </div>
-        <div style={{ padding: '14px 0', borderBottom: '1px solid var(--border)' }}>
-          <div style={{ fontSize: 14, marginBottom: 10 }}>Typ zatrudnienia</div>
+        <div style={{ padding: '14px 0' }}>
+          <div style={{ fontSize: 14, marginBottom: 10, display: 'flex', alignItems: 'center', gap: 10 }}>
+            <span>Typ zatrudnienia</span>
+          </div>
           <div className="segmented">
             {EMPLOYMENT_OPTIONS.map((o) => (
               <div
                 key={o.id}
                 className={`option${profile.employment === o.id ? ' selected' : ''}`}
-                onClick={() => commit({ employment: o.id })}
+                onClick={() => {
+                  haptic('light')
+                  commit({ employment: o.id })
+                }}
               >
                 {o.label}
               </div>
             ))}
           </div>
         </div>
-        <div style={{ padding: '14px 0' }}>
-          <div style={{ fontSize: 14, marginBottom: 10 }}>Domyślny oddział</div>
+      </div>
+
+      <div className="settings-section-title">Preferencje</div>
+      <div className="card" style={{ margin: '0 18px', padding: '6px 16px' }}>
+        <div style={{ padding: '14px 0', borderBottom: '1px solid var(--border)' }}>
+          <div style={{ fontSize: 14, marginBottom: 12, display: 'flex', alignItems: 'center', gap: 10 }}>
+            <Building2 size={18} color="var(--muted)" />
+            <span>Domyślny oddział</span>
+          </div>
           <div style={{ display: 'flex', flexDirection: 'column', gap: 8 }}>
             {departments.map((d) => (
               <div
                 key={d}
                 className={`list-option${profile.default_oddzial === d ? ' selected' : ''}`}
-                onClick={() => commit({ default_oddzial: d })}
+                onClick={() => {
+                  haptic('light')
+                  commit({ default_oddzial: d })
+                }}
               >
                 <span>{d}</span>
                 {profile.default_oddzial === d && <span style={{ fontSize: 12, color: 'var(--muted)' }}>domyślnie</span>}
@@ -114,21 +188,20 @@ export function ProfileScreen() {
             ))}
           </div>
         </div>
+
+        <div className="field-row">
+          <div style={{ display: 'flex', alignItems: 'center', gap: 10, fontSize: 14 }}>
+            <SunMoon size={18} color="var(--muted)" />
+            <span>Ciemny motyw</span>
+          </div>
+          <label className="ios-toggle">
+            <input type="checkbox" checked={isDark} onChange={toggleTheme} />
+            <span className="slider"></span>
+          </label>
+        </div>
       </div>
 
-      <div className="card" style={{ margin: '8px 18px', padding: '6px 16px' }}>
-        <button 
-          className="btn btn-ghost" style={{ width: '100%', fontSize: 13, padding: '8px 0' }}
-          onClick={() => {
-            const current = document.documentElement.dataset.scheme
-            applyScheme(current === 'dark' ? 'light' : 'dark', true)
-          }}
-        >
-          Zmień motyw (Jasny / Ciemny)
-        </button>
-      </div>
-
-      <div style={{ textAlign: 'center', padding: '20px 0', fontSize: 12, color: 'var(--muted)' }}>
+      <div style={{ textAlign: 'center', padding: '32px 0 20px', fontSize: 12, color: 'var(--muted)' }}>
         MedApp · śledzenie zmian · v1.0
       </div>
     </div>
