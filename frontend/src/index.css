@@ -317,6 +317,14 @@ button {
   box-sizing: border-box;
   border-radius: 8px;
   transition: all 0.2s ease;
+  -moz-appearance: textfield; /* Firefox */
+}
+
+/* Скрываем дефолтные стрелочки в Chrome/Safari/Edge/Opera */
+.field-row input::-webkit-outer-spin-button,
+.field-row input::-webkit-inner-spin-button {
+  -webkit-appearance: none;
+  margin: 0;
 }
 
 .field-row input:focus,
