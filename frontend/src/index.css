@@ -318,6 +318,7 @@ button {
   border-radius: 8px;
   transition: all 0.2s ease;
   -moz-appearance: textfield; /* Firefox */
+  appearance: textfield; /* Standard */
 }
 
 /* Скрываем дефолтные стрелочки в Chrome/Safari/Edge/Opera */
