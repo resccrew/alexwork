@@ -57,6 +57,7 @@ export const api = {
   profile: () => request<Profile>('/profile'),
   updateProfile: (payload: Partial<Profile>) =>
     request<Profile>('/profile', { method: 'PATCH', body: JSON.stringify(payload) }),
+  disconnectGoogle: () => request<void>('/google/disconnect', { method: 'POST' }),
   sendReport: (year: number, month: number) =>
     request<{ ok: boolean }>(`/report/send?year=${year}&month=${month}`, { method: 'POST' }),
 }

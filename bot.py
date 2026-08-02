@@ -24,6 +24,7 @@ from apscheduler.triggers.cron import CronTrigger
 import backup
 import db
 import excel
+import gcal
 from config import ADMIN_CHAT_IDS, BOT_TOKEN, DATA_DIR, DEPARTMENTS, LOG_PATH, MONTH_NAMES_PL, TZ, WEBAPP_URL
 
 logging.basicConfig(
@@ -136,6 +137,7 @@ async def arrive_dept(callback: CallbackQuery):
     dept = callback.data.split(":", 1)[1]
     try:
         entry = await db.open_entry(callback.from_user.id, "work", dept)
+        await gcal.sync_entry(entry)
     except db.EntryAlreadyOpenError as e:
         await callback.message.edit_text(
             f"Jesteś już zameldowany o {e.entry.start_dt:%H:%M} ({e.entry.oddzial})."
@@ -153,6 +155,8 @@ async def duty(message: Message):
     open_e = await db.get_open_entry(message.from_user.id)
     if open_e:
         closed, opened = await db.close_and_reopen(message.from_user.id, "dyzur", open_e.oddzial)
+        await gcal.sync_entry(closed)
+        await gcal.sync_entry(opened)
         await message.answer(
             f"Dzienna zmiana zakończona: {fmt_hm(closed.hours)} ({closed.hours:.2f} g)\n"
             f"🌙 Dyżur rozpoczęty: {opened.start_dt:%H:%M}, {opened.oddzial}"
@@ -166,6 +170,7 @@ async def duty_dept(callback: CallbackQuery):
     dept = callback.data.split(":", 1)[1]
     try:
         entry = await db.open_entry(callback.from_user.id, "dyzur", dept)
+        await gcal.sync_entry(entry)
     except db.EntryAlreadyOpenError as e:
         await callback.message.edit_text(
             f"Jesteś już zameldowany o {e.entry.start_dt:%H:%M} ({e.entry.oddzial})."
@@ -182,6 +187,7 @@ async def duty_dept(callback: CallbackQuery):
 async def leave(message: Message):
     try:
         entry = await db.close_entry(message.from_user.id)
+        await gcal.sync_entry(entry)
     except db.NoOpenEntryError:
         await message.answer("Nie ma otwartej zmiany. Zapomniałeś się zameldować? Naciśnij ✏️ Popraw")
         return
@@ -410,6 +416,7 @@ async def correction_add_confirm_yes(callback: CallbackQuery, state: FSMContext)
     start_dt = datetime.fromisoformat(data["start_iso"])
     end_dt = datetime.fromisoformat(data["end_iso"])
     entry = await db.add_manual_entry(callback.from_user.id, data["kind"], data["oddzial"], start_dt, end_dt)
+    await gcal.sync_entry(entry)
     await callback.message.edit_text(f"✅ Dodano: {entry.hours:.2f} g, {entry.oddzial}")
     await state.clear()
     await callback.answer()

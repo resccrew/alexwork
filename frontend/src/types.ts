@@ -41,6 +41,7 @@ export interface Profile {
   default_oddzial: string | null
   dyzur_bonus_pct: number
   night_bonus_pct: number
+  gcal_refresh_token?: string | null
 }
 
 export interface AppConfig {

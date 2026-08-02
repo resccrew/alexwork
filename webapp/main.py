@@ -7,14 +7,15 @@ from pathlib import Path
 from typing import Optional
 
 import httpx
-from fastapi import Depends, FastAPI, Header, HTTPException
+from fastapi import Depends, FastAPI, Header, HTTPException, Query
 from fastapi.middleware.cors import CORSMiddleware
-from fastapi.responses import FileResponse
+from fastapi.responses import FileResponse, RedirectResponse, HTMLResponse
 from starlette.background import BackgroundTask
 
 import calc
 import db
 import excel
+import gcal
 from config import BOT_TOKEN, DEPARTMENTS, DOCTOR_NAME, MONTH_NAMES_PL, TZ
 from webapp.auth import InvalidInitData, validate_init_data
 from webapp.schemas import (
@@ -111,6 +112,7 @@ async def status(user: dict = Depends(get_current_user)):
 async def start_shift(body: ShiftStartIn, user: dict = Depends(get_current_user)):
     try:
         entry = await db.open_entry(user["id"], body.kind, body.oddzial, source="webapp")
+        await gcal.sync_entry(entry)
     except db.EntryAlreadyOpenError as e:
         raise HTTPException(status_code=409, detail="A shift is already open") from e
     return entry_to_shift_out(entry)
@@ -120,6 +122,7 @@ async def start_shift(body: ShiftStartIn, user: dict = Depends(get_current_user)
 async def stop_shift(user: dict = Depends(get_current_user)):
     try:
         entry = await db.close_entry(user["id"])
+        await gcal.sync_entry(entry)
     except db.NoOpenEntryError as e:
         raise HTTPException(status_code=404, detail="No open shift") from e
     return entry_to_shift_out(entry)
@@ -144,6 +147,7 @@ async def create_shift(body: ShiftCreateIn, user: dict = Depends(get_current_use
         user["id"], body.kind, body.oddzial, to_local(body.start), to_local(body.end),
         source="webapp", edited=True,
     )
+    await gcal.sync_entry(entry)
     return entry_to_shift_out(entry)
 
 
@@ -161,6 +165,8 @@ async def update_shift(shift_id: int, body: ShiftUpdateIn, user: dict = Depends(
         oddzial=body.oddzial,
         mark_edited=True,
     )
+    if entry:
+        await gcal.sync_entry(entry)
     return entry_to_shift_out(entry)
 
 
@@ -170,6 +176,7 @@ async def delete_shift(shift_id: int, user: dict = Depends(get_current_user)):
     if not existing:
         raise HTTPException(status_code=404, detail="Shift not found")
     await db.delete_entry(shift_id, user["id"])
+    await gcal.sync_entry(existing, is_deleted=True)
 
 
 @app.get("/api/summary", response_model=SummaryOut)
@@ -251,3 +258,58 @@ async def update_profile(body: ProfileUpdateIn, user: dict = Depends(get_current
     fields = {k: v for k, v in body.model_dump().items() if v is not None}
     p = await db.update_profile(user["id"], **fields)
     return ProfileOut(**vars(p))
+
+@app.get("/api/google/login")
+async def google_login(initData: str = Query(...)):
+    try:
+        user = validate_init_data(initData)
+    except InvalidInitData as e:
+        raise HTTPException(status_code=401, detail=str(e))
+    
+    domain = os.environ.get("APP_DOMAIN", "http://localhost:8000").rstrip('/')
+    redirect_uri = f"{domain}/api/google/callback"
+    flow = gcal.get_auth_flow(redirect_uri)
+    if not flow:
+        raise HTTPException(status_code=500, detail="Google API not configured (Missing Client ID or Secret)")
+    
+    state = str(user["id"])
+    auth_url, _ = flow.authorization_url(prompt='consent', access_type='offline', state=state)
+    return RedirectResponse(auth_url)
+
+@app.get("/api/google/callback")
+async def google_callback(state: str, code: str):
+    user_id = int(state)
+    domain = os.environ.get("APP_DOMAIN", "http://localhost:8000").rstrip('/')
+    redirect_uri = f"{domain}/api/google/callback"
+    flow = gcal.get_auth_flow(redirect_uri)
+    if not flow:
+        raise HTTPException(status_code=500, detail="Google API not configured")
+    
+    flow.fetch_token(code=code)
+    creds = flow.credentials
+    await db.update_profile(
+        user_id,
+        gcal_access_token=creds.token,
+        gcal_refresh_token=creds.refresh_token,
+        gcal_expiry=None
+    )
+    
+    html = """
+    <html>
+      <head><script src="https://telegram.org/js/telegram-web-app.js"></script></head>
+      <body>
+        <script>
+           Telegram.WebApp.ready();
+           Telegram.WebApp.close();
+        </script>
+        <h3>Google Calendar Connected!</h3>
+        <p>You can close this window and return to the app.</p>
+      </body>
+    </html>
+    """
+    return HTMLResponse(html)
+
+@app.post("/api/google/disconnect")
+async def google_disconnect(user: dict = Depends(get_current_user)):
+    await gcal.disconnect(user["id"])
+    return {"ok": True}

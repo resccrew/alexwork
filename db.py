@@ -35,6 +35,7 @@ class Entry:
     source: str
     created_at: str
     edited: bool = False
+    gcal_event_id: Optional[str] = None
 
     @property
     def start_dt(self) -> datetime:
@@ -66,11 +67,11 @@ def _row_to_entry(row) -> Entry:
     return Entry(
         id=row[0], user_id=row[1], kind=row[2], oddzial=row[3],
         start_ts=row[4], end_ts=row[5], source=row[6], created_at=row[7],
-        edited=bool(row[8]),
+        edited=bool(row[8]), gcal_event_id=row[9] if len(row) > 9 else None,
     )
 
 
-ENTRY_COLUMNS = "id, user_id, kind, oddzial, start_ts, end_ts, source, created_at, edited"
+ENTRY_COLUMNS = "id, user_id, kind, oddzial, start_ts, end_ts, source, created_at, edited, gcal_event_id"
 
 # New databases get user_id from day one (NOT NULL). Existing production databases are
 # migrated below in init_db(): the column is added nullable, then backfilled from
@@ -85,7 +86,8 @@ CREATE TABLE IF NOT EXISTS entries (
   end_ts TEXT,
   source TEXT NOT NULL DEFAULT 'bot',
   created_at TEXT NOT NULL,
-  edited INTEGER NOT NULL DEFAULT 0
+  edited INTEGER NOT NULL DEFAULT 0,
+  gcal_event_id TEXT
 );
 
 CREATE TABLE IF NOT EXISTS profile (
@@ -95,7 +97,10 @@ CREATE TABLE IF NOT EXISTS profile (
   employment TEXT NOT NULL DEFAULT 'etat',
   default_oddzial TEXT,
   dyzur_bonus_pct REAL NOT NULL DEFAULT 0,
-  night_bonus_pct REAL NOT NULL DEFAULT 0
+  night_bonus_pct REAL NOT NULL DEFAULT 0,
+  gcal_access_token TEXT,
+  gcal_refresh_token TEXT,
+  gcal_expiry REAL
 );
 """
 
@@ -150,6 +155,19 @@ async def init_db():
                     (int(legacy_owner), *legacy_row),
                 )
             await db.execute("DROP TABLE profile_legacy")
+
+        # Migrate Google Calendar fields
+        cur = await db.execute("PRAGMA table_info(entries)")
+        entry_cols = {row[1] for row in await cur.fetchall()}
+        if "gcal_event_id" not in entry_cols:
+            await db.execute("ALTER TABLE entries ADD COLUMN gcal_event_id TEXT")
+
+        cur = await db.execute("PRAGMA table_info(profile)")
+        profile_cols = {row[1] for row in await cur.fetchall()}
+        if profile_cols and "gcal_access_token" not in profile_cols:
+            await db.execute("ALTER TABLE profile ADD COLUMN gcal_access_token TEXT")
+            await db.execute("ALTER TABLE profile ADD COLUMN gcal_refresh_token TEXT")
+            await db.execute("ALTER TABLE profile ADD COLUMN gcal_expiry REAL")
 
         await db.commit()
 
@@ -298,6 +316,15 @@ async def update_entry(
             await db.commit()
         return await get_entry(entry_id, user_id)
 
+async def update_entry_gcal(entry_id: int, user_id: int, gcal_event_id: Optional[str]) -> None:
+    async with _lock:
+        async with aiosqlite.connect(DB_PATH) as db:
+            await db.execute(
+                "UPDATE entries SET gcal_event_id = ? WHERE id = ? AND user_id = ?",
+                (gcal_event_id, entry_id, user_id),
+            )
+            await db.commit()
+
 
 async def delete_entry(entry_id: int, user_id: int) -> None:
     async with _lock:
@@ -363,6 +390,9 @@ class Profile:
     default_oddzial: Optional[str]
     dyzur_bonus_pct: float
     night_bonus_pct: float
+    gcal_access_token: Optional[str] = None
+    gcal_refresh_token: Optional[str] = None
+    gcal_expiry: Optional[float] = None
 
 
 async def get_profile(user_id: int) -> Profile:
@@ -370,17 +400,24 @@ async def get_profile(user_id: int) -> Profile:
         await db.execute("INSERT OR IGNORE INTO profile (user_id) VALUES (?)", (user_id,))
         await db.commit()
         cur = await db.execute(
-            "SELECT rate, norm_hours, employment, default_oddzial, dyzur_bonus_pct, night_bonus_pct "
+            "SELECT rate, norm_hours, employment, default_oddzial, dyzur_bonus_pct, night_bonus_pct, "
+            "gcal_access_token, gcal_refresh_token, gcal_expiry "
             "FROM profile WHERE user_id = ?",
             (user_id,),
         )
         row = await cur.fetchone()
-        return Profile(rate=row[0], norm_hours=row[1], employment=row[2], default_oddzial=row[3],
-                        dyzur_bonus_pct=row[4], night_bonus_pct=row[5])
+        return Profile(
+            rate=row[0], norm_hours=row[1], employment=row[2], default_oddzial=row[3],
+            dyzur_bonus_pct=row[4], night_bonus_pct=row[5],
+            gcal_access_token=row[6], gcal_refresh_token=row[7], gcal_expiry=row[8]
+        )
 
 
 async def update_profile(user_id: int, **fields) -> Profile:
-    allowed = {"rate", "norm_hours", "employment", "default_oddzial", "dyzur_bonus_pct", "night_bonus_pct"}
+    allowed = {
+        "rate", "norm_hours", "employment", "default_oddzial", "dyzur_bonus_pct", "night_bonus_pct",
+        "gcal_access_token", "gcal_refresh_token", "gcal_expiry"
+    }
     unknown = set(fields) - allowed
     if unknown:
         raise ValueError(f"Unknown profile fields: {unknown}")

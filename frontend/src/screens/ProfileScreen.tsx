@@ -4,7 +4,7 @@ import { useApp } from '../context/AppContext'
 import { Avatar } from '../components/Avatar'
 import { getTelegramUser, applyScheme, haptic } from '../telegram'
 import type { Employment } from '../types'
-import { Wallet, Percent, Clock, Building2, SunMoon, Check } from 'lucide-react'
+import { Wallet, Percent, Clock, Building2, SunMoon, Check, CalendarDays } from 'lucide-react'
 
 const EMPLOYMENT_OPTIONS: { id: Employment; label: string }[] = [
   { id: 'etat', label: 'Etat' },
@@ -202,6 +202,47 @@ export function ProfileScreen() {
             <input type="checkbox" checked={isDark} onChange={toggleTheme} />
             <span className="slider"></span>
           </label>
+        </div>
+      </div>
+
+      <div className="settings-section-title">Integracje</div>
+      <div className="card" style={{ margin: '0 18px', padding: '16px' }}>
+        <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: 10 }}>
+          <div style={{ display: 'flex', alignItems: 'center', gap: 10, fontSize: 14 }}>
+            <CalendarDays size={18} color={profile.gcal_refresh_token ? "var(--work)" : "var(--muted)"} />
+            <span>Google Calendar</span>
+          </div>
+          
+          {profile.gcal_refresh_token ? (
+            <button 
+              onClick={async () => {
+                haptic('light')
+                try {
+                  await api.disconnectGoogle()
+                  setProfile({ ...profile, gcal_refresh_token: null })
+                  showToast('Odłączono kalendarz')
+                } catch (e) {
+                  showToast('Błąd')
+                }
+              }}
+              style={{ fontSize: 13, color: 'var(--dyzur)', fontWeight: 600 }}
+            >
+              Odłącz
+            </button>
+          ) : (
+            <button 
+              onClick={() => {
+                haptic('light')
+                // WebApp API to open link or just window.location
+                if (window.Telegram?.WebApp) {
+                    window.location.href = `/api/google/login?initData=${encodeURIComponent(window.Telegram.WebApp.initData)}`
+                }
+              }}
+              style={{ fontSize: 13, color: 'var(--work)', fontWeight: 600 }}
+            >
+              Połącz
+            </button>
+          )}
         </div>
       </div>
 
