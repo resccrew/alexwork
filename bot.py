@@ -642,10 +642,6 @@ def setup_scheduler(bot: Bot) -> AsyncIOScheduler:
         remind_if_dyzur_too_long, CronTrigger(hour=10, minute=0, timezone=TZ), args=[bot],
         id="morning_dyzur_reminder", replace_existing=True,
     )
-    scheduler.add_job(
-        daily_backup, CronTrigger(hour=23, minute=0, timezone=TZ), args=[bot],
-        id="daily_backup", replace_existing=True,
-    )
     scheduler.start()
     return scheduler
 
