@@ -6,7 +6,7 @@ python-dotenv==1.0.0
 google-api-python-client==2.115.0
 google-auth-httplib2==0.2.0
 google-auth-oauthlib==1.2.0
-google-auth==2.26.21
+google-auth==2.26.2
 fastapi==0.140.0
 uvicorn[standard]==0.51.0
 pytest==8.3.4
