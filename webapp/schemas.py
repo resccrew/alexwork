@@ -62,6 +62,7 @@ class ProfileOut(BaseModel):
     default_oddzial: Optional[str]
     dyzur_bonus_pct: float
     night_bonus_pct: float
+    gcal_refresh_token: Optional[str] = None
 
 
 class ProfileUpdateIn(BaseModel):
