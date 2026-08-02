@@ -11,7 +11,7 @@ from config import ADMIN_CHAT_IDS, DATA_DIR, TZ
 logger = logging.getLogger("dyzury_bot")
 
 
-async def send_backup(bot: Bot, reason: str = "zaplanowana kopia zapasowa"):
+async def send_backup(bot: Bot, reason: str = "zaplanowana kopia zapasowa", target_user_id: int | None = None):
     """Send the raw SQLite database (everyone's data -- this is a whole-system disaster
     recovery artifact, deliberately not scoped per user: /restore needs the full file to
     bring the server back for all users, not just whoever happened to trigger the backup)
@@ -20,7 +20,9 @@ async def send_backup(bot: Bot, reason: str = "zaplanowana kopia zapasowa"):
         return
     now = datetime.now(TZ)
 
-    for chat_id in ADMIN_CHAT_IDS:
+    targets = [str(target_user_id)] if target_user_id and str(target_user_id) in ADMIN_CHAT_IDS else ADMIN_CHAT_IDS
+
+    for chat_id in targets:
         user_id = int(chat_id)
         try:
             await bot.send_document(

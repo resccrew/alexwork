@@ -190,11 +190,11 @@ async def leave(message: Message):
         f"🏁 Zmiana zakończona: {fmt_hm(entry.hours)} ({entry.hours:.2f} g)\n"
         f"W tym miesiącu: {total:.2f} g"
     )
-    await on_shift_closed(message.bot)
+    await on_shift_closed(message.bot, message.from_user.id)
 
 
-async def on_shift_closed(bot: Bot):
-    await backup.send_backup(bot, reason="zmiana zakończona")
+async def on_shift_closed(bot: Bot, user_id: int):
+    await backup.send_backup(bot, reason="zmiana zakończona", target_user_id=user_id)
 
 
 # ---------------------------------------------------------- Мои часы ----
@@ -413,7 +413,7 @@ async def correction_add_confirm_yes(callback: CallbackQuery, state: FSMContext)
     await callback.message.edit_text(f"✅ Dodano: {entry.hours:.2f} g, {entry.oddzial}")
     await state.clear()
     await callback.answer()
-    await on_shift_closed(callback.bot)
+    await on_shift_closed(callback.bot, callback.from_user.id)
 
 
 @router.callback_query(Correction.add_confirm, F.data == "corr_confirm:no")
