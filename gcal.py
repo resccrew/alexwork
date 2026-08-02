@@ -139,3 +139,42 @@ async def sync_entry(entry: db.Entry, is_deleted: bool = False):
 
     except Exception as e:
         logger.error("Failed to sync entry %s to Google Calendar: %s", entry.id, e)
+
+async def get_upcoming_events(user_id: int, limit: int = 5) -> list[dict]:
+    creds = await get_credentials(user_id)
+    if not creds:
+        return []
+
+    try:
+        service = build('calendar', 'v3', credentials=creds)
+        now = datetime.utcnow().isoformat() + 'Z'  # 'Z' indicates UTC time
+        events_result = service.events().list(
+            calendarId='primary', timeMin=now,
+            maxResults=limit, singleEvents=True,
+            orderBy='startTime'
+        ).execute()
+        events = events_result.get('items', [])
+        
+        result = []
+        for event in events:
+            # Handle all-day events (date instead of dateTime)
+            start_str = event['start'].get('dateTime') or event['start'].get('date')
+            end_str = event['end'].get('dateTime') or event['end'].get('date')
+            if not start_str:
+                continue
+                
+            try:
+                start_dt = datetime.fromisoformat(start_str.replace('Z', '+00:00'))
+                # If it's an all-day event, we might get just 'YYYY-MM-DD'. fromisoformat handles this.
+            except Exception:
+                continue
+                
+            result.append({
+                'id': event['id'],
+                'summary': event.get('summary', 'Wydarzenie'),
+                'start_dt': start_dt,
+            })
+        return result
+    except Exception as e:
+        logger.error("Failed to fetch upcoming events from Google Calendar: %s", e)
+        return []

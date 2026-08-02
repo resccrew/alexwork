@@ -17,19 +17,19 @@ class ShiftOut(BaseModel):
 
 
 class ShiftStartIn(BaseModel):
-    kind: str = Field(pattern="^(work|dyzur)$")
+    kind: str = Field(pattern="^(work|dyzur|event)$")
     oddzial: str
 
 
 class ShiftCreateIn(BaseModel):
-    kind: str = Field(pattern="^(work|dyzur)$")
+    kind: str = Field(pattern="^(work|dyzur|event)$")
     oddzial: str
     start: datetime
     end: datetime
 
 
 class ShiftUpdateIn(BaseModel):
-    kind: Optional[str] = Field(default=None, pattern="^(work|dyzur)$")
+    kind: Optional[str] = Field(default=None, pattern="^(work|dyzur|event)$")
     oddzial: Optional[str] = None
     start: Optional[datetime] = None
     end: Optional[datetime] = None

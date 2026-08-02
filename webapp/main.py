@@ -137,8 +137,31 @@ async def list_shifts(year: int, month: int, user: dict = Depends(get_current_us
 
 @app.get("/api/shifts/upcoming", response_model=list[ShiftOut])
 async def list_upcoming_shifts(user: dict = Depends(get_current_user)):
-    entries = await db.get_upcoming_entries(user["id"], limit=3)
-    return [entry_to_shift_out(e) for e in entries]
+    entries = await db.get_upcoming_entries(user["id"], limit=5)
+    local_shifts = [entry_to_shift_out(e) for e in entries]
+    local_gcal_ids = {e.gcal_event_id for e in entries if getattr(e, 'gcal_event_id', None)}
+    
+    gcal_events = await gcal.get_upcoming_events(user["id"], limit=10)
+    for event in gcal_events:
+        if event['id'] not in local_gcal_ids:
+            # Hash string ID to integer for the frontend ShiftOut model
+            pseudo_id = hash(event['id']) % (10**8)
+            local_shifts.append(
+                ShiftOut(
+                    id=pseudo_id,
+                    kind="event",
+                    oddzial=event['summary'],
+                    start=event['start_dt'],
+                    end=None,
+                    hours=None,
+                    night_hours=None,
+                    edited=False,
+                    source="gcal"
+                )
+            )
+            
+    local_shifts.sort(key=lambda s: s.start)
+    return local_shifts[:5]
 
 
 @app.post("/api/shifts", response_model=ShiftOut)

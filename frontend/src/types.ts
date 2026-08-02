@@ -1,4 +1,4 @@
-export type ShiftKind = 'work' | 'dyzur'
+export type ShiftKind = 'work' | 'dyzur' | 'event'
 
 export interface Shift {
   id: number

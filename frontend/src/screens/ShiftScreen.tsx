@@ -1,6 +1,6 @@
 import { useEffect, useMemo, useState } from 'react'
 import { motion } from 'framer-motion'
-import { Clock, Moon, Activity, Building2 } from 'lucide-react'
+import { Clock, Moon, Activity, Building2, Calendar } from 'lucide-react'
 import { api } from '../api'
 import { useApp } from '../context/AppContext'
 import { Avatar } from '../components/Avatar'
@@ -347,15 +347,19 @@ export function ShiftScreen() {
             {upcoming.map(s => {
               const uDate = new Date(s.start)
               const dateStr = uDate.toLocaleDateString('pl-PL', { day: 'numeric', month: 'short' })
+              const isEvent = s.kind === 'event'
+              const iconBg = isEvent ? 'color-mix(in srgb, var(--chrome) 15%, transparent)' : s.kind === 'dyzur' ? 'var(--dyzur-soft)' : 'var(--praca-soft)'
+              const iconColor = isEvent ? 'var(--chrome)' : s.kind === 'dyzur' ? 'var(--dyzur)' : 'var(--praca)'
+              
               return (
                 <div key={s.id} className="card" style={{ padding: '14px 16px', display: 'flex', alignItems: 'center', gap: 12 }}>
                   <div style={{
                     width: 40, height: 40, borderRadius: 10,
-                    background: s.kind === 'dyzur' ? 'var(--dyzur-soft)' : 'var(--praca-soft)',
-                    color: s.kind === 'dyzur' ? 'var(--dyzur)' : 'var(--praca)',
+                    background: iconBg,
+                    color: iconColor,
                     display: 'flex', alignItems: 'center', justifyContent: 'center'
                   }}>
-                    {s.kind === 'dyzur' ? <Moon size={20} /> : <Building2 size={20} />}
+                    {isEvent ? <Calendar size={20} /> : s.kind === 'dyzur' ? <Moon size={20} /> : <Building2 size={20} />}
                   </div>
                   <div style={{ flex: 1 }}>
                     <div style={{ fontWeight: 600, fontSize: 15, color: 'var(--text)' }}>{s.oddzial}</div>
